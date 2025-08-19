@@ -3,6 +3,10 @@
 
   inputs = {
     utils.url = "github:numtide/flake-utils";
+    BSDS500 = {
+      url = "github:BIDS/BSDS500";
+      flake = false;
+    };
   };
 
   outputs =
@@ -10,6 +14,7 @@
       self,
       nixpkgs,
       utils,
+      BSDS500,
       ...
     }:
     utils.lib.eachDefaultSystem (
@@ -19,6 +24,9 @@
         pythonPackages = pkgs.python310Packages;
       in
       {
+        packages = {
+          bsds500 = pkgs.runCommand "bsds500-src" { src = BSDS500; } ''cp -r $src $out'';
+        };
         devShells.default = pkgs.mkShell {
           name = "python-venv";
           venvDir = "./.venv";
@@ -52,6 +60,7 @@
                 glib
               ]
             }:/run/opengl-driver/lib";
+            BSDS500_PATH = "${self.packages.${system}.bsds500}";
           };
 
           # Run this command, only after creating the virtual environment

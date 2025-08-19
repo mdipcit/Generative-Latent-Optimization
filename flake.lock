@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "BSDS500": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1459468842,
+        "narHash": "sha256-0QkpcUcy7aarQBZ/6j34/tZp9pIoWrcFSWbN2GBbUng=",
+        "owner": "BIDS",
+        "repo": "BSDS500",
+        "rev": "a04b7c6c3a9f0ace74bf205c72a43d32e1c72722",
+        "type": "github"
+      },
+      "original": {
+        "owner": "BIDS",
+        "repo": "BSDS500",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1751285371,
@@ -16,6 +32,7 @@
     },
     "root": {
       "inputs": {
+        "BSDS500": "BSDS500",
         "nixpkgs": "nixpkgs",
         "utils": "utils"
       }
