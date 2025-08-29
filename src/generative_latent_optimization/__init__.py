@@ -9,10 +9,22 @@ image reconstruction quality for Stable Diffusion-based image completion.
 from . import optimization
 from . import metrics
 from . import utils
+from . import evaluation
 
 # Import commonly used classes and functions
 from .optimization import LatentOptimizer, OptimizationConfig, OptimizationResult
-from .metrics import ImageMetrics, calculate_psnr
+from .metrics import (
+    ImageMetrics, 
+    calculate_psnr,
+    # Phase 3: Enhanced metrics
+    IndividualMetricsCalculator,
+    LPIPSMetric,
+    ImprovedSSIM,
+    DatasetFIDEvaluator,
+    IndividualImageMetrics,
+    DatasetEvaluationResults
+)
+from .evaluation import ComprehensiveDatasetEvaluator, SimpleAllMetricsEvaluator
 from .utils import IOUtils, save_image_tensor
 
 __version__ = "0.2.0"
@@ -22,14 +34,26 @@ __all__ = [
     'optimization',
     'metrics', 
     'utils',
-    # Classes
+    'evaluation',
+    # Core Classes
     'LatentOptimizer',
     'OptimizationConfig', 
     'OptimizationResult',
-    'ImageMetrics',
     'IOUtils',
-    # Functions
+    # Legacy Metrics
+    'ImageMetrics',
     'calculate_psnr',
+    # Phase 3: Enhanced Metrics
+    'IndividualMetricsCalculator',
+    'LPIPSMetric',
+    'ImprovedSSIM', 
+    'DatasetFIDEvaluator',
+    'ComprehensiveDatasetEvaluator',
+    'SimpleAllMetricsEvaluator',
+    # Data Structures
+    'IndividualImageMetrics',
+    'DatasetEvaluationResults',
+    # Functions
     'save_image_tensor'
 ]
 
