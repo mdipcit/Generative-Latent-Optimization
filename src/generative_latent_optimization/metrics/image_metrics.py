@@ -8,18 +8,73 @@ VAE reconstruction and optimization results.
 
 import torch
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union
 from dataclasses import dataclass
+import datetime
 
 
 @dataclass
 class MetricResults:
-    """Container for image quality metrics results"""
+    """Container for image quality metrics results (Legacy - for backward compatibility)"""
     psnr_db: float
     ssim: float
     mse: float
     mae: float
     lpips: Optional[float] = None
+
+
+@dataclass
+class IndividualImageMetrics:
+    """Enhanced container for individual image quality metrics"""
+    # Basic metrics
+    psnr_db: float
+    ssim: float  
+    mse: float
+    mae: float
+    # Advanced individual image metrics
+    lpips: Optional[float] = None
+    ssim_improved: Optional[float] = None  # TorchMetrics SSIM
+
+
+@dataclass
+class DatasetEvaluationResults:
+    """Container for dataset-level quality evaluation results"""
+    # Dataset comparison metrics
+    fid_score: float                    # Dataset vs original BSDS500
+    total_images: int                   # Number of evaluated images
+    original_dataset_path: str          # Original dataset path
+    generated_dataset_path: str         # Generated dataset path
+    evaluation_timestamp: str           # Evaluation execution time
+    
+    # Individual metrics statistics summary
+    individual_metrics_summary: Dict[str, float]  # Average PSNR improvement etc.
+
+
+@dataclass
+class AllMetricsResults:
+    """Container for comprehensive all metrics evaluation results"""
+    # Individual image metrics for all images
+    individual_metrics: List[IndividualImageMetrics]
+    
+    # Dataset-level metrics
+    fid_score: float
+    
+    # Statistical summary for all metrics
+    statistics: Dict[str, Dict[str, float]]  # {'psnr': {'mean': 30.5, 'std': 2.1, ...}}
+    
+    # Metadata
+    total_images: int
+    evaluation_timestamp: str
+    created_dataset_path: str
+    original_dataset_path: str
+    
+    def get_metric_summary(self) -> str:
+        """Get a brief summary of key metrics"""
+        psnr_mean = self.statistics.get('psnr', {}).get('mean', 0)
+        ssim_mean = self.statistics.get('ssim', {}).get('mean', 0)
+        lpips_mean = self.statistics.get('lpips', {}).get('mean', 'N/A')
+        
+        return f"PSNR: {psnr_mean:.2f}dB, SSIM: {ssim_mean:.4f}, LPIPS: {lpips_mean}, FID: {self.fid_score:.2f}"
 
 
 class ImageMetrics:
