@@ -1,0 +1,11 @@
+torch
+torchvision
+diffusers==0.34.0
+transformers==4.53.0
+accelerate==1.8.1
+numpy==1.26.4
+pillow==11.2.1
+safetensors==0.5.3
+huggingface-hub==0.33.1
+tqdm==4.67.1
+requests==2.28.1
