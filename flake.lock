@@ -3,26 +3,23 @@
     "BSDS500": {
       "flake": false,
       "locked": {
-        "lastModified": 1459468842,
-        "narHash": "sha256-0QkpcUcy7aarQBZ/6j34/tZp9pIoWrcFSWbN2GBbUng=",
-        "owner": "BIDS",
-        "repo": "BSDS500",
-        "rev": "a04b7c6c3a9f0ace74bf205c72a43d32e1c72722",
-        "type": "github"
+        "lastModified": 1756365291,
+        "narHash": "sha256-dUruZAOU3Zwmr87q9Ofv5xaUSJD5W3R8hX5ouOxph7E=",
+        "type": "tarball",
+        "url": "https://github.com/mdipcit/image_resize_pipeline/releases/download/v1.0-bsds500/BSDS500_512x512_full.tar.gz"
       },
       "original": {
-        "owner": "BIDS",
-        "repo": "BSDS500",
-        "type": "github"
+        "type": "tarball",
+        "url": "https://github.com/mdipcit/image_resize_pipeline/releases/download/v1.0-bsds500/BSDS500_512x512_full.tar.gz"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1751285371,
-        "narHash": "sha256-/hDU+2AUeFFu5qGHO/UyFMc4UG/x5Cw5uXO36KGTk6c=",
+        "lastModified": 1756288264,
+        "narHash": "sha256-Om8adB1lfkU7D33VpR+/haZ2gI5r3Q+ZbIPzE5sYnwE=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "b9c03fbbaf84d85bb28eee530c7e9edc4021ca1b",
+        "rev": "ddd1826f294a0ee5fdc198ab72c8306a0ea73aa9",
         "type": "github"
       },
       "original": {

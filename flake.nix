@@ -4,7 +4,7 @@
   inputs = {
     utils.url = "github:numtide/flake-utils";
     BSDS500 = {
-      url = "github:BIDS/BSDS500";
+      url = "https://github.com/mdipcit/image_resize_pipeline/releases/download/v1.0-bsds500/BSDS500_512x512_full.tar.gz";
       flake = false;
     };
   };
@@ -21,23 +21,20 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-        pythonPackages = pkgs.python310Packages;
       in
       {
         packages = {
           bsds500 = pkgs.runCommand "bsds500-src" { src = BSDS500; } ''cp -r $src $out'';
         };
         devShells.default = pkgs.mkShell {
-          name = "python-venv";
-          venvDir = "./.venv";
+          name = "python-uv";
+      
           buildInputs = [
             # A Python interpreter including the 'venv' module is required to bootstrap
             # the environment.
-            pythonPackages.python
+            pkgs.python310
+            pkgs.uv
 
-            # This executes some shell code to initialize a venv in $venvDir before
-            # dropping into the shell
-            pythonPackages.venvShellHook
 
             # Those are dependencies that we would like to use from nixpkgs, which will
             # add them to PYTHONPATH and thus make them accessible from within the venv.
@@ -48,7 +45,6 @@
             pkgs.wget
             pkgs.cudatoolkit
             pkgs.graphviz
-            pkgs.poetry
           ];
           env = {
             LD_LIBRARY_PATH = "${
@@ -63,18 +59,7 @@
             BSDS500_PATH = "${self.packages.${system}.bsds500}";
           };
 
-          # Run this command, only after creating the virtual environment
-          postVenvCreation = ''
-            unset SOURCE_DATE_EPOCH
-            pip install -r requirements.txt
-          '';
 
-          # Now we can execute any commands within the virtual environment.
-          # This is optional and can be left out to run pip manually.
-          postShellHook = ''
-            # allow pip to install wheels
-            unset SOURCE_DATE_EPOCH
-          '';
           ShellHook = ''
             export CUDA_PATH=${pkgs.cudatoolkit}
           '';
