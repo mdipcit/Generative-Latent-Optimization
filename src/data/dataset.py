@@ -1,51 +1,53 @@
 """
-BSDS500前処理済みデータセットクラス
+BSDS500データセットクラス
 
-前処理済みのBSDS500データを効率的に読み込むためのデータセットクラスです。
+元BSDS500データからvae-toolkitを使用して直接読み込み・前処理を行うデータセットクラスです。
 """
 
-import json
+import os
 from pathlib import Path
-from typing import Optional, List, Dict, Tuple, Union, TYPE_CHECKING
+from typing import Optional, List, Dict, Tuple, Union
 import logging
 
-if TYPE_CHECKING:
-    import numpy as np
-
 try:
-    import numpy as np
-    NUMPY_AVAILABLE = True
+    from vae_toolkit import load_and_preprocess_image
+    VAE_TOOLKIT_AVAILABLE = True
 except ImportError:
-    NUMPY_AVAILABLE = False
-    np = None
+    VAE_TOOLKIT_AVAILABLE = False
+    load_and_preprocess_image = None
 
 
 class BSDS500Dataset:
-    """前処理済みBSDS500データセットクラス"""
+    """BSDS500データセットクラス - 元画像から直接読み込み"""
     
     def __init__(self, 
-                 processed_data_dir: Union[str, Path],
+                 bsds500_path: Optional[Union[str, Path]] = None,
                  split: str = 'train',
-                 load_metadata: bool = True,
+                 target_size: int = 256,
                  cache_in_memory: bool = False):
         """
         Args:
-            processed_data_dir: 前処理済みデータのディレクトリ
+            bsds500_path: BSDS500データセットのパス。Noneの場合は$BSDS500_PATH環境変数を使用
             split: データセットの分割（'train', 'val', 'test'）
-            load_metadata: メタデータを読み込むかどうか
+            target_size: リサイズ先のサイズ (default: 256)
             cache_in_memory: データをメモリにキャッシュするかどうか
         """
-        if not NUMPY_AVAILABLE:
-            raise ImportError("numpy is required for dataset loading")
+        if not VAE_TOOLKIT_AVAILABLE:
+            raise ImportError("vae-toolkit is required for dataset loading. Install with: pip install vae-toolkit")
         
-        self.processed_data_dir = Path(processed_data_dir)
+        # BSDS500パスの設定
+        if bsds500_path is None:
+            bsds500_path = os.environ.get('BSDS500_PATH')
+            if bsds500_path is None:
+                raise ValueError("BSDS500 path not provided. Set BSDS500_PATH environment variable or pass bsds500_path argument.")
+        
+        self.bsds500_path = Path(bsds500_path)
         self.split = split
-        self.load_metadata = load_metadata
+        self.target_size = target_size
         self.cache_in_memory = cache_in_memory
         
         # パス設定
-        self.images_dir = self.processed_data_dir / split / 'images'
-        self.metadata_dir = self.processed_data_dir / split / 'metadata'
+        self.images_dir = self.bsds500_path / split
         
         # ログ設定
         self.logger = logging.getLogger(__name__)
@@ -55,42 +57,34 @@ class BSDS500Dataset:
         
         # キャッシュ初期化
         self.data_cache = {} if cache_in_memory else None
-        self.metadata_cache = {} if cache_in_memory and load_metadata else None
         
-        self.logger.info(f"BSDS500Dataset initialized: {len(self.file_list)} images in {split}")
+        self.logger.info(f"BSDS500Dataset initialized: {len(self.file_list)} images in {split} (target size: {target_size}x{target_size})")
     
     def _load_file_list(self):
-        """処理済みファイルリストを読み込み"""
+        """元BSDS500画像ファイルリストを読み込み"""
         if not self.images_dir.exists():
             raise FileNotFoundError(f"Images directory not found: {self.images_dir}")
         
-        # NPZファイルを取得
-        npz_files = list(self.images_dir.glob("*.npz"))
-        npz_files.sort()
+        # JPGファイルを取得
+        jpg_files = list(self.images_dir.glob("*.jpg"))
+        jpg_files.sort()
         
         self.file_list = []
-        for npz_file in npz_files:
+        for jpg_file in jpg_files:
             file_info = {
-                'image_path': npz_file,
-                'name': npz_file.stem
+                'image_path': jpg_file,
+                'name': jpg_file.stem
             }
-            
-            # メタデータファイルパスも追加
-            if self.load_metadata and self.metadata_dir.exists():
-                metadata_path = self.metadata_dir / (npz_file.stem + '.json')
-                if metadata_path.exists():
-                    file_info['metadata_path'] = metadata_path
-            
             self.file_list.append(file_info)
         
         if len(self.file_list) == 0:
-            raise ValueError(f"No processed images found in {self.images_dir}")
+            raise ValueError(f"No images found in {self.images_dir}")
     
     def __len__(self) -> int:
         """データセットサイズを返す"""
         return len(self.file_list)
     
-    def __getitem__(self, idx: int) -> Union[Tuple["np.ndarray", Dict], "np.ndarray"]:
+    def __getitem__(self, idx: int) -> Tuple["torch.Tensor", Dict]:
         """
         指定されたインデックスのデータを取得
         
@@ -98,8 +92,9 @@ class BSDS500Dataset:
             idx: データインデックス
             
         Returns:
-            Union[Tuple[np.ndarray, Dict], np.ndarray]: 
-                load_metadata=Trueの場合は(image, metadata)、Falseの場合はimage
+            Tuple[torch.Tensor, Dict]: (image_tensor, metadata)
+                image_tensor: torch.Size([1, 3, target_size, target_size]), [-1, 1] normalized
+                metadata: ファイル名等のメタデータ
         """
         if idx >= len(self.file_list):
             raise IndexError(f"Index {idx} out of range (dataset size: {len(self.file_list)})")
@@ -108,67 +103,41 @@ class BSDS500Dataset:
         
         # キャッシュから取得を試行
         if self.cache_in_memory and idx in self.data_cache:
-            image = self.data_cache[idx]
+            image_tensor, metadata = self.data_cache[idx]
         else:
-            # NPZファイルから画像データを読み込み
-            image = self._load_image(file_info['image_path'])
+            # vae-toolkitで画像を読み込み・前処理
+            image_tensor, pil_image = load_and_preprocess_image(
+                str(file_info['image_path']), 
+                target_size=self.target_size
+            )
+            
+            # メタデータを作成
+            metadata = {
+                'name': file_info['name'],
+                'original_path': str(file_info['image_path']),
+                'target_size': self.target_size,
+                'split': self.split
+            }
             
             # キャッシュに保存
             if self.cache_in_memory:
-                self.data_cache[idx] = image
+                self.data_cache[idx] = (image_tensor, metadata)
         
-        # メタデータが必要な場合
-        if self.load_metadata:
-            # キャッシュから取得を試行
-            if self.cache_in_memory and idx in self.metadata_cache:
-                metadata = self.metadata_cache[idx]
-            else:
-                metadata = self._load_metadata(file_info)
-                
-                # キャッシュに保存
-                if self.cache_in_memory:
-                    self.metadata_cache[idx] = metadata
-            
-            return image, metadata
-        else:
-            return image
+        return image_tensor, metadata
     
-    def _load_image(self, image_path: Path) -> "np.ndarray":
-        """NPZファイルから画像データを読み込み"""
-        try:
-            data = np.load(image_path)
-            image = data['image']
-            return image
-            
-        except Exception as e:
-            self.logger.error(f"Failed to load image from {image_path}: {str(e)}")
-            raise
+    def get_image_path(self, idx: int) -> str:
+        """指定されたインデックスの画像パスを取得"""
+        if idx >= len(self.file_list):
+            raise IndexError(f"Index {idx} out of range (dataset size: {len(self.file_list)})")
+        return str(self.file_list[idx]['image_path'])
+        
+    def get_image_name(self, idx: int) -> str:
+        """指定されたインデックスの画像名を取得"""
+        if idx >= len(self.file_list):
+            raise IndexError(f"Index {idx} out of range (dataset size: {len(self.file_list)})")
+        return self.file_list[idx]['name']
     
-    def _load_metadata(self, file_info: Dict) -> Dict:
-        """メタデータを読み込み"""
-        metadata = {'name': file_info['name']}
-        
-        # NPZファイル内のメタデータを読み込み
-        try:
-            data = np.load(file_info['image_path'])
-            if 'metadata' in data:
-                npz_metadata = json.loads(data['metadata'].item())
-                metadata.update(npz_metadata)
-        except Exception as e:
-            self.logger.warning(f"Failed to load NPZ metadata: {str(e)}")
-        
-        # 外部メタデータファイルを読み込み
-        if 'metadata_path' in file_info:
-            try:
-                with open(file_info['metadata_path'], 'r') as f:
-                    external_metadata = json.load(f)
-                    metadata.update(external_metadata)
-            except Exception as e:
-                self.logger.warning(f"Failed to load external metadata: {str(e)}")
-        
-        return metadata
-    
-    def get_batch(self, indices: List[int]) -> Union[Tuple["np.ndarray", List[Dict]], "np.ndarray"]:
+    def get_batch(self, indices: List[int]) -> Tuple["torch.Tensor", List[Dict]]:
         """
         指定されたインデックスのバッチデータを取得
         
@@ -176,38 +145,29 @@ class BSDS500Dataset:
             indices: データインデックスのリスト
             
         Returns:
-            Union[Tuple[np.ndarray, List[Dict]], np.ndarray]: 
-                バッチデータ（形状: [batch_size, H, W, C]）
+            Tuple[torch.Tensor, List[Dict]]: 
+                バッチデータ（形状: [batch_size, 3, target_size, target_size]）
         """
+        import torch
+        
         batch_images = []
-        batch_metadata = [] if self.load_metadata else None
+        batch_metadata = []
         
         for idx in indices:
-            if self.load_metadata:
-                image, metadata = self[idx]
-                batch_metadata.append(metadata)
-            else:
-                image = self[idx]
-            
-            batch_images.append(image)
+            image_tensor, metadata = self[idx]
+            batch_images.append(image_tensor.squeeze(0))  # [1, 3, H, W] -> [3, H, W]
+            batch_metadata.append(metadata)
         
-        # numpy配列に変換
-        batch_array = np.stack(batch_images, axis=0)
+        # torch.Tensorに変換
+        batch_tensor = torch.stack(batch_images, dim=0)  # [batch_size, 3, H, W]
         
-        if self.load_metadata:
-            return batch_array, batch_metadata
-        else:
-            return batch_array
+        return batch_tensor, batch_metadata
     
     def clear_cache(self):
         """メモリキャッシュをクリア"""
         if self.data_cache is not None:
             self.data_cache.clear()
             self.logger.info("Data cache cleared")
-        
-        if self.metadata_cache is not None:
-            self.metadata_cache.clear()
-            self.logger.info("Metadata cache cleared")
 
 
 class BSDS500DataLoader:
@@ -230,7 +190,8 @@ class BSDS500DataLoader:
         # インデックスリストを作成
         self.indices = list(range(len(dataset)))
         if shuffle:
-            np.random.shuffle(self.indices)
+            import random
+            random.shuffle(self.indices)
         
         self.current_idx = 0
     
@@ -238,7 +199,8 @@ class BSDS500DataLoader:
         """イテレータの初期化"""
         self.current_idx = 0
         if self.shuffle:
-            np.random.shuffle(self.indices)
+            import random
+            random.shuffle(self.indices)
         return self
     
     def __next__(self):
@@ -251,10 +213,10 @@ class BSDS500DataLoader:
         batch_indices = self.indices[self.current_idx:end_idx]
         
         # バッチデータを取得
-        batch_data = self.dataset.get_batch(batch_indices)
+        batch_tensor, batch_metadata = self.dataset.get_batch(batch_indices)
         
         self.current_idx = end_idx
-        return batch_data
+        return batch_tensor, batch_metadata
     
     def __len__(self):
         """バッチ数を返す"""
