@@ -16,6 +16,7 @@ dependencies = [
     "filelock==3.13.1",
     "fonttools==4.58.4",
     "fsspec==2024.6.1",
+    "h5py==3.12.1",
     "hf-xet==1.1.5",
     "huggingface-hub==0.33.1",
     "idna==3.4",
