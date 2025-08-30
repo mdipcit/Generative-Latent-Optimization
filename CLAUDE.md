@@ -244,6 +244,264 @@ dataset = load_optimized_dataset('./dataset.pt')
 dataloader = dataset.create_dataloader(batch_size=4, shuffle=True)
 ```
 
+# 🧪 テストスイート
+
+## 📋 テスト構造
+
+### 統合テスト (tests/integration/)
+- **test_optimization_integration.py**: エンドツーエンド最適化テスト
+  - モジュラー最適化パイプライン検証
+  - 個別コンポーネント動作確認
+  - 実際のVAEモデル使用
+  - 結果保存・可視化
+
+### ユニットテスト (tests/unit/)
+
+#### 最適化関連 (test_optimization/)
+- **test_latent_optimizer.py**: LatentOptimizerクラス
+  - 初期化・設定テスト
+  - 最適化機能（MSE・L1損失）
+  - 収束検出・チェックポイント
+  - バッチ処理・デバイス一貫性
+  - パフォーマンス・メトリクス計算
+- **test_optimization_config.py**: 最適化設定
+- **test_optimization_result.py**: 最適化結果
+
+#### メトリクス関連 (test_metrics/)
+- **test_image_metrics.py**: 画像品質メトリクス
+  - PSNR・SSIM・MSE・MAE計算
+  - バッチ処理・統計計算
+  - Gaussianカーネル・フィルタ
+  - エラーハンドリング・エッジケース
+- **test_individual_metrics.py**: 個別メトリクス（LPIPS・改良SSIM）
+- **test_dataset_metrics.py**: データセットメトリクス（FID）
+- **test_metrics_integration.py**: メトリクス統合
+
+#### 評価関連 (test_evaluation/)
+- **test_simple_evaluator.py**: SimpleAllMetricsEvaluator
+  - 初期化・設定テスト
+  - 画像ペアマッチング・読み込み
+  - 統計計算・FID評価
+  - 完全評価フロー・エラー処理
+- **test_dataset_evaluator.py**: データセット評価器
+
+#### データセット関連 (test_dataset/)
+- **test_batch_processor.py**: バッチ処理
+- **test_bsds500_dataset.py**: BSDS500データセット
+- **test_png_dataset.py**: PNG形式データセット
+- **test_pytorch_dataset.py**: PyTorch形式データセット
+
+#### その他 (test_utils/, test_visualization/)
+- **test_io_utils.py**: I/Oユーティリティ
+- **test_image_viz.py**: 画像可視化
+- **test_vae_basic.py / test_vae_fixed.py**: VAE基本機能
+
+### フィクスチャー・ヘルパー (tests/fixtures/)
+- **test_helpers.py**: テストヘルパー（画像生成・デバイス設定・メトリクス計算）
+- **assertion_helpers.py**: アサーション関数（浮動小数点比較・統計検証）
+- **dataset_mocks.py**: データセットモック
+- **evaluation_mocks.py**: 評価モック
+
+## 🚀 テスト実行方法
+
+### 推奨テスト実行順序
+```bash
+# 1. 基本VAE機能テスト（最初に実行推奨）
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python tests/unit/test_vae_fixed.py
+
+# 2. 統合テスト（全体動作確認）
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python tests/integration/test_optimization_integration.py
+
+# 3. コア機能ユニットテスト
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python tests/unit/test_optimization/test_latent_optimizer.py
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python tests/unit/test_metrics/test_image_metrics.py
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python tests/unit/test_evaluation/test_simple_evaluator.py
+```
+
+### カテゴリ別テスト実行
+```bash
+# 最適化機能テスト
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python -m pytest tests/unit/test_optimization/ -v
+
+# メトリクス評価テスト
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python -m pytest tests/unit/test_metrics/ -v
+
+# データセット処理テスト
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python -m pytest tests/unit/test_dataset/ -v
+
+# 評価システムテスト
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python -m pytest tests/unit/test_evaluation/ -v
+```
+
+### 包括的テスト実行
+```bash
+# 全テストスイート実行（時間がかかります）
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python -m pytest tests/ -v
+
+# 統合テストのみ
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python -m pytest tests/integration/ -v
+
+# ユニットテストのみ
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python -m pytest tests/unit/ -v
+```
+
+### 個別テストファイル実行
+```bash
+# 特定テストファイル
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python tests/unit/test_optimization/test_latent_optimizer.py
+
+# pytest使用（詳細出力）
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python -m pytest tests/unit/test_vae_fixed.py::test_model_loading -v
+```
+
+## 🎯 テストカバレッジ
+
+### コンポーネント別カバレッジ
+- **✅ VAE基本機能**: モデル読み込み・エンコード・デコード・デバイス処理
+- **✅ 最適化エンジン**: 収束判定・損失関数・バッチ処理・勾配計算
+- **✅ 品質メトリクス**: PSNR・SSIM・MSE・MAE・LPIPS・FID
+- **✅ データセット処理**: バッチ処理・PNG/PyTorch形式・BSDS500
+- **✅ 評価システム**: 個別評価・統合評価・統計計算
+- **✅ I/Oユーティリティ**: 画像保存・テンソル保存・JSON処理
+- **✅ 可視化**: 画像出力・損失プロット
+
+### 機能別テストカバレッジ
+- **デバイス互換性**: CPU・CUDA自動切り替え・デバイス一貫性
+- **エラーハンドリング**: 不正入力・メモリ不足・計算失敗
+- **エッジケース**: ゼロ分散画像・異なるサイズ・極端値
+- **パフォーマンス**: 処理時間・メモリ効率・バッチ処理性能
+- **品質保証**: 数値精度・再現性・統計妥当性
+
+## 📊 テスト品質保証
+
+### テスト設計原則
+- **モック使用**: 外部依存関係の分離
+- **フィクスチャー**: 再利用可能テストデータ
+- **アサーション**: 専用ヘルパーによる堅牢な検証
+- **エラー網羅**: 予期される例外ケースの全カバー
+
+### テストデータ品質
+- **再現性**: 固定シード使用
+- **多様性**: 様々な画像パターン（単色・グラデーション・チェッカーボード）
+- **現実性**: BSDS500データセット対応
+- **境界条件**: ゼロ値・最大値・NaN・Inf処理
+
+## ⚡ 高速テスト推奨
+
+### 開発時の基本テスト（約1分）
+```bash
+# 最重要機能の動作確認
+HF_TOKEN="your_token" NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python tests/unit/test_vae_fixed.py
+```
+
+### フル機能テスト（約3-5分）
+```bash
+# 統合テスト + 主要ユニットテスト
+HF_TOKEN="your_token" NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python tests/integration/test_optimization_integration.py
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python tests/unit/test_optimization/test_latent_optimizer.py
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python tests/unit/test_metrics/test_image_metrics.py
+```
+
+### 完全テストスイート（約10-15分）
+```bash
+# 全テスト実行
+HF_TOKEN="your_token" NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python -m pytest tests/ -v --tb=short
+```
+
+## 🛠️ テスト環境要件
+
+### 必須要件
+- **Nix環境**: UNFREE パッケージ許可
+- **Python依存関係**: `uv sync` 実行済み
+- **HF_TOKEN**: Hugging Face認証（VAEモデル用）
+
+### オプション要件
+- **CUDA**: GPU加速テスト（自動フォールバックあり）
+- **BSDS500_PATH**: データセットテスト用（設定時のみ）
+
+### テスト固有設定
+```bash
+# テスト専用環境変数
+export PYTORCH_TEST_WITH_SLOW=0        # 高速テスト
+export CUDA_VISIBLE_DEVICES=0          # GPU指定
+export PYTHONPATH="${PWD}/src"          # パッケージ検索パス
+```
+
+## 📈 継続的品質保証
+
+### コミット前推奨テスト
+```bash
+# コミット前必須（約2分）
+HF_TOKEN="your_token" NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python tests/unit/test_vae_fixed.py
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python tests/unit/test_optimization/test_latent_optimizer.py
+```
+
+### 週次品質チェック
+```bash
+# 全機能回帰テスト（約15分）
+HF_TOKEN="your_token" NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python -m pytest tests/ -v
+```
+
+### パフォーマンス回帰監視
+```bash
+# パフォーマンステスト
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv run python experiments/optimization/quick_optimization_test.py
+```
+
+## 🔍 テストトラブルシューティング
+
+### よくあるエラーと対処法
+
+#### HF_TOKEN関連
+```bash
+# エラー: HF_TOKEN not set
+# 対処: 環境変数設定
+export HF_TOKEN="your_huggingface_token"
+```
+
+#### モジュール読み込みエラー
+```bash
+# エラー: ModuleNotFoundError
+# 対処: 依存関係同期
+NIXPKGS_ALLOW_UNFREE=1 nix develop --impure -c uv sync
+```
+
+#### CUDA関連
+```bash
+# 警告: CUDA not available
+# 対処: CPUで継続実行（性能低下あり）
+# CUDAテストは自動的にスキップされます
+```
+
+#### メモリ不足
+```bash
+# エラー: CUDA out of memory
+# 対処: 小バッチサイズまたはCPU実行
+export CUDA_VISIBLE_DEVICES=""  # CPU強制
+```
+
+### テスト結果の解釈
+
+#### 成功例
+```
+✅ PASSED - All tests completed successfully
+📊 PSNR improvement: 2.5 dB
+🎯 SSIM improvement: 0.05
+```
+
+#### 注意が必要な結果
+```
+⚠️ PASSED with warnings - CUDA not available, running on CPU
+⚠️ PASSED - Some advanced metrics unavailable
+```
+
+#### 失敗時の調査手順
+1. エラーメッセージの確認
+2. 依存関係の再同期
+3. 環境変数の確認
+4. デバイス可用性の確認
+5. 個別コンポーネントテストの実行
+
 # 🔄 次期開発構想
 
 ## Phase 4以降
