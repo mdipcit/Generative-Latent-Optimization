@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 from pathlib import Path
 import json
-from typing import Dict, List, Union, Any, Optional
+from typing import Dict, List, Union, Any, Optional, Tuple
 import pickle
 import h5py
 
@@ -275,3 +275,117 @@ def save_image_tensor(tensor: torch.Tensor, path: Union[str, Path]) -> None:
 def create_results_saver(output_dir: Union[str, Path]) -> ResultsSaver:
     """Factory function for creating ResultsSaver"""
     return ResultsSaver(output_dir)
+
+
+class StatisticsCalculator:
+    """Utility class for statistical calculations"""
+    
+    @staticmethod
+    def calculate_basic_stats(values: List[float], metric_name: str = "") -> Dict[str, float]:
+        """
+        Calculate basic statistics for a list of values
+        
+        Args:
+            values: List of numerical values
+            metric_name: Name of the metric for logging (optional)
+            
+        Returns:
+            Dictionary with mean, std, min, max, median, count
+        """
+        if not values:
+            return {}
+        
+        values_array = np.array(values)
+        
+        stats = {
+            'mean': float(np.mean(values_array)),
+            'std': float(np.std(values_array)),
+            'min': float(np.min(values_array)),
+            'max': float(np.max(values_array)),
+            'median': float(np.median(values_array)),
+            'count': len(values)
+        }
+        
+        return stats
+    
+    @staticmethod
+    def calculate_improvement_stats(before_values: List[float], 
+                                  after_values: List[float]) -> Dict[str, float]:
+        """
+        Calculate improvement statistics between before and after values
+        
+        Args:
+            before_values: Values before optimization
+            after_values: Values after optimization
+            
+        Returns:
+            Dictionary with improvement statistics
+        """
+        if not before_values or not after_values or len(before_values) != len(after_values):
+            return {}
+        
+        improvements = [after - before for before, after in zip(before_values, after_values)]
+        
+        stats = StatisticsCalculator.calculate_basic_stats(improvements, "improvement")
+        stats['positive_improvements'] = sum(1 for x in improvements if x > 0)
+        stats['improvement_rate'] = stats['positive_improvements'] / len(improvements) * 100
+        
+        return stats
+
+
+class FileUtils:
+    """Enhanced file utilities for common operations"""
+    
+    @staticmethod
+    def get_image_files_recursive(directory: Union[str, Path], 
+                                extensions: Optional[List[str]] = None) -> List[Path]:
+        """
+        Get all image files recursively from directory
+        
+        Args:
+            directory: Directory to search
+            extensions: List of file extensions (default: common image formats)
+            
+        Returns:
+            Sorted list of image file paths
+        """
+        if extensions is None:
+            extensions = ['.png', '.jpg', '.jpeg', '.bmp', '.tiff']
+        
+        directory = Path(directory)
+        files = []
+        
+        for ext in extensions:
+            files.extend(directory.glob(f'**/*{ext}'))
+            files.extend(directory.glob(f'**/*{ext.upper()}'))
+        
+        return sorted(files)
+    
+    @staticmethod
+    def match_file_pairs(dir1: Path, dir2: Path, 
+                        extensions: Optional[List[str]] = None) -> List[Tuple[Path, Path]]:
+        """
+        Match files between two directories by filename stem
+        
+        Args:
+            dir1: First directory
+            dir2: Second directory  
+            extensions: File extensions to consider
+            
+        Returns:
+            List of (file1, file2) pairs with matching stems
+        """
+        files1 = FileUtils.get_image_files_recursive(dir1, extensions)
+        files2 = FileUtils.get_image_files_recursive(dir2, extensions)
+        
+        # Create lookup dictionaries by stem
+        files1_dict = {f.stem: f for f in files1}
+        files2_dict = {f.stem: f for f in files2}
+        
+        # Find matching pairs
+        pairs = []
+        for stem in files1_dict.keys():
+            if stem in files2_dict:
+                pairs.append((files1_dict[stem], files2_dict[stem]))
+        
+        return pairs
