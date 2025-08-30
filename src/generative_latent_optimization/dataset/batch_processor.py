@@ -19,7 +19,7 @@ import time
 from vae_toolkit import VAELoader, load_and_preprocess_image
 from ..optimization import LatentOptimizer, OptimizationConfig, OptimizationResult
 from ..metrics import ImageMetrics, MetricResults
-from ..utils import IOUtils, ResultsSaver
+from ..utils import IOUtils, ResultsSaver, StatisticsCalculator
 
 
 @dataclass
@@ -355,7 +355,7 @@ class BatchProcessor:
             'average_psnr_improvement': sum(r['psnr_improvement'] for r in results) / len(results) if results else 0,
             'average_ssim_improvement': sum(r['ssim_improvement'] for r in results) / len(results) if results else 0,
             'average_loss_reduction': sum(r['loss_reduction'] for r in results) / len(results) if results else 0,
-            'psnr_improvement_std': self._calculate_std([r['psnr_improvement'] for r in results]),
+            'psnr_improvement_std': StatisticsCalculator.calculate_basic_stats([r['psnr_improvement'] for r in results]).get('std', 0),
             'best_psnr_improvement': max([r['psnr_improvement'] for r in results]) if results else 0,
             'worst_psnr_improvement': min([r['psnr_improvement'] for r in results]) if results else 0,
             'timestamp': time.strftime("%Y-%m-%d %H:%M:%S")
@@ -373,14 +373,6 @@ class BatchProcessor:
         print(f"  Average PSNR improvement: {summary['average_psnr_improvement']:.2f} dB")
         print(f"  Average SSIM improvement: {summary['average_ssim_improvement']:.3f}")
         print(f"  Average loss reduction: {summary['average_loss_reduction']:.1f}%")
-    
-    def _calculate_std(self, values: List[float]) -> float:
-        """Calculate standard deviation"""
-        if not values:
-            return 0.0
-        mean = sum(values) / len(values)
-        variance = sum((x - mean) ** 2 for x in values) / len(values)
-        return variance ** 0.5
     
     def _combine_processing_results(self, results_list: List[ProcessingResults]) -> ProcessingResults:
         """Combine multiple processing results"""
