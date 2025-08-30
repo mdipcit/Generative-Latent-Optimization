@@ -4,12 +4,16 @@ from .io_utils import (
     IOUtils,
     ResultsSaver,
     save_image_tensor,
-    create_results_saver
+    create_results_saver,
+    StatisticsCalculator,
+    FileUtils
 )
 
 __all__ = [
     'IOUtils',
     'ResultsSaver',
     'save_image_tensor',
-    'create_results_saver'
+    'create_results_saver',
+    'StatisticsCalculator',
+    'FileUtils'
 ]
