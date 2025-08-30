@@ -27,7 +27,7 @@ from .metrics import (
     DatasetEvaluationResults
 )
 from .evaluation import ComprehensiveDatasetEvaluator, SimpleAllMetricsEvaluator
-from .utils import IOUtils, save_image_tensor
+from .utils import IOUtils, save_image_tensor, StatisticsCalculator, FileUtils
 
 __version__ = "0.2.0"
 
@@ -44,6 +44,8 @@ __all__ = [
     'OptimizationConfig', 
     'OptimizationResult',
     'IOUtils',
+    'StatisticsCalculator',
+    'FileUtils',
     # Legacy Metrics
     'ImageMetrics',
     'calculate_psnr',

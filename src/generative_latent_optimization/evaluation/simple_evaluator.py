@@ -21,6 +21,7 @@ try:
     from ..metrics.metrics_integration import IndividualMetricsCalculator
     from ..metrics.dataset_metrics import DatasetFIDEvaluator
     from ..metrics.image_metrics import AllMetricsResults, IndividualImageMetrics
+    from ..utils.io_utils import StatisticsCalculator, FileUtils
 except ImportError:
     # For direct execution as script
     import sys
@@ -29,6 +30,7 @@ except ImportError:
     from metrics.metrics_integration import IndividualMetricsCalculator
     from metrics.dataset_metrics import DatasetFIDEvaluator
     from metrics.image_metrics import AllMetricsResults, IndividualImageMetrics
+    from utils.io_utils import StatisticsCalculator, FileUtils
 
 logger = logging.getLogger(__name__)
 
@@ -370,23 +372,10 @@ class SimpleAllMetricsEvaluator:
         Returns:
             Dictionary with mean, std, min, max, median
         """
-        if not values:
-            return {}
+        stats = StatisticsCalculator.calculate_basic_stats(values, metric_name)
         
-        import numpy as np
-        
-        values_array = np.array(values)
-        
-        stats = {
-            'mean': float(np.mean(values_array)),
-            'std': float(np.std(values_array)),
-            'min': float(np.min(values_array)),
-            'max': float(np.max(values_array)),
-            'median': float(np.median(values_array)),
-            'count': len(values)
-        }
-        
-        logger.info(f"    {metric_name}: μ={stats['mean']:.4f}, σ={stats['std']:.4f}, range=[{stats['min']:.4f}, {stats['max']:.4f}]")
+        if stats:
+            logger.info(f"    {metric_name}: μ={stats['mean']:.4f}, σ={stats['std']:.4f}, range=[{stats['min']:.4f}, {stats['max']:.4f}]")
         
         return stats
     
