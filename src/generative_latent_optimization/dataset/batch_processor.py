@@ -75,7 +75,7 @@ class BatchProcessor:
         self.io_utils = IOUtils()
         
         # Create checkpoint directory
-        self.checkpoint_dir = Path(self.config.checkpoint_dir)
+        self.checkpoint_dir = Path(self.config.checkpoint_dir).resolve()
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize components
@@ -99,8 +99,8 @@ class BatchProcessor:
         """
         start_time = time.time()
         
-        input_dir = Path(input_dir)
-        output_dir = Path(output_dir)
+        input_dir = Path(input_dir).resolve()
+        output_dir = Path(output_dir).resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
         
         print(f"🚀 Starting batch processing: {input_dir} -> {output_dir}")
@@ -205,8 +205,8 @@ class BatchProcessor:
         Returns:
             ProcessingResults
         """
-        bsds500_path = Path(bsds500_path)
-        output_dir = Path(output_dir)
+        bsds500_path = Path(bsds500_path).resolve()
+        output_dir = Path(output_dir).resolve()
         
         if split == "all":
             splits_to_process = ["train", "val", "test"]

@@ -74,8 +74,8 @@ class DatasetFIDEvaluator:
         Returns:
             DatasetEvaluationResults: Complete FID evaluation results
         """
-        created_path = Path(created_dataset_path)
-        original_path = Path(original_dataset_path)
+        created_path = Path(created_dataset_path).resolve()
+        original_path = Path(original_dataset_path).resolve()
         
         # Validate dataset paths
         self._validate_dataset_paths(created_path, original_path)
@@ -126,8 +126,8 @@ class DatasetFIDEvaluator:
         Returns:
             DatasetEvaluationResults: Complete FID evaluation results
         """
-        pytorch_path = Path(pytorch_dataset_path)
-        original_path = Path(original_bsds500_path)
+        pytorch_path = Path(pytorch_dataset_path).resolve()
+        original_path = Path(original_bsds500_path).resolve()
         
         if not pytorch_path.exists():
             raise FileNotFoundError(f"PyTorch dataset not found: {pytorch_path}")

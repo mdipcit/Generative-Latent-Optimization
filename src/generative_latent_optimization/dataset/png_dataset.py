@@ -60,8 +60,8 @@ class PNGDatasetBuilder:
         Returns:
             Path to created PNG dataset directory
         """
-        processed_dir = Path(processed_data_dir)
-        output_dir = Path(output_dir)
+        processed_dir = Path(processed_data_dir).resolve()
+        output_dir = Path(output_dir).resolve()
         
         print(f"🖼️ Creating PNG dataset from: {processed_dir}")
         print(f"   Output directory: {output_dir}")

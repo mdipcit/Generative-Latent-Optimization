@@ -87,8 +87,8 @@ class SimpleAllMetricsEvaluator:
         Returns:
             AllMetricsResults: Complete evaluation results
         """
-        created_path = Path(created_dataset_path)
-        original_path = Path(original_dataset_path)
+        created_path = Path(created_dataset_path).resolve()
+        original_path = Path(original_dataset_path).resolve()
         
         logger.info("=== Starting All Metrics Evaluation ===")
         logger.info(f"Created dataset: {created_path}")
