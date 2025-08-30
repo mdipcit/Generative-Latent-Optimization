@@ -96,8 +96,8 @@ def process_bsds500_dataset(bsds500_path: Union[str, Path],
         if not bsds500_path:
             raise ValueError(f"Environment variable {env_var} not set")
     
-    bsds500_path = Path(bsds500_path)
-    output_path = Path(output_path)
+    bsds500_path = Path(bsds500_path).resolve()
+    output_path = Path(output_path).resolve()
     
     print(f"Input: {bsds500_path}")
     print(f"Output: {output_path}")
@@ -183,8 +183,8 @@ def create_pytorch_dataset(processed_data_dir: Union[str, Path],
     Returns:
         Path to created dataset file
     """
-    processed_dir = Path(processed_data_dir)
-    output_path = Path(output_path)
+    processed_dir = Path(processed_data_dir).resolve()
+    output_path = Path(output_path).resolve()
     
     print(f"Creating dataset from: {processed_dir}")
     
@@ -310,7 +310,7 @@ def create_dual_datasets(processed_data_dir: Union[str, Path],
     Returns:
         Dictionary with paths to both datasets
     """
-    base_path = Path(base_output_path)
+    base_path = Path(base_output_path).resolve()
     
     # Prepare paths
     pytorch_path = f"{base_path}.pt"

@@ -54,7 +54,7 @@ class OptimizedLatentsDataset(Dataset):
         Args:
             dataset_path: Path to .pt dataset file
         """
-        self.dataset_path = Path(dataset_path)
+        self.dataset_path = Path(dataset_path).resolve()
         
         if not self.dataset_path.exists():
             raise FileNotFoundError(f"Dataset file not found: {dataset_path}")
@@ -139,6 +139,13 @@ class OptimizedLatentsDataset(Dataset):
         if split is not None:
             # Create subset for specific split
             indices = self.split_indices.get(split, [])
+            if not indices:
+                # Return an empty dataloader for non-existent splits
+                from torch.utils.data import Dataset
+                class EmptyDataset(Dataset):
+                    def __len__(self): return 0
+                    def __getitem__(self, idx): raise IndexError("Empty dataset")
+                return DataLoader(EmptyDataset(), batch_size=batch_size, shuffle=False, **kwargs)
             subset = torch.utils.data.Subset(self, indices)
             return DataLoader(subset, batch_size=batch_size, shuffle=shuffle, **kwargs)
         else:
@@ -157,7 +164,7 @@ class OptimizedLatentsDataset(Dataset):
         Returns:
             Path to saved subset
         """
-        output_path = Path(output_path)
+        output_path = Path(output_path).resolve()
         
         # Determine samples to include
         if split is not None:
@@ -223,8 +230,8 @@ class DatasetBuilder:
         Returns:
             Path to created dataset file
         """
-        processed_dir = Path(processed_data_dir)
-        output_path = Path(output_path)
+        processed_dir = Path(processed_data_dir).resolve()
+        output_path = Path(output_path).resolve()
         
         print(f"🏗️ Creating PyTorch dataset from: {processed_dir}")
         

@@ -41,7 +41,7 @@ class ImageVisualizer:
         Returns:
             Path to saved image
         """
-        save_path = Path(save_path)
+        save_path = Path(save_path).resolve()
         save_path.parent.mkdir(parents=True, exist_ok=True)
         
         fig, axes = plt.subplots(1, 3, figsize=self.figsize)
@@ -114,7 +114,7 @@ class ImageVisualizer:
         Returns:
             Path to saved image
         """
-        save_path = Path(save_path)
+        save_path = Path(save_path).resolve()
         save_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Create subplots: 2x2 grid
@@ -196,7 +196,7 @@ class ImageVisualizer:
         Returns:
             Path to saved image
         """
-        save_path = Path(save_path)
+        save_path = Path(save_path).resolve()
         save_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Convert to numpy
@@ -270,7 +270,7 @@ class ImageVisualizer:
         Returns:
             Path to saved image
         """
-        save_path = Path(save_path)
+        save_path = Path(save_path).resolve()
         save_path.parent.mkdir(parents=True, exist_ok=True)
         
         n_images = min(len(results), max_images)

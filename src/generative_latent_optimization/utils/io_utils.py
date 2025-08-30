@@ -149,7 +149,7 @@ class IOUtils:
     @staticmethod
     def create_directory(path: Union[str, Path]) -> Path:
         """Create directory if it doesn't exist"""
-        path = Path(path)
+        path = Path(path).resolve()
         path.mkdir(parents=True, exist_ok=True)
         return path
     
@@ -178,7 +178,7 @@ class IOUtils:
     @staticmethod
     def ensure_path_exists(path: Union[str, Path]) -> Path:
         """Ensure parent directory exists for given path"""
-        path = Path(path)
+        path = Path(path).resolve()
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
 
@@ -189,7 +189,7 @@ class ResultsSaver:
     """
     
     def __init__(self, output_dir: Union[str, Path]):
-        self.output_dir = Path(output_dir)
+        self.output_dir = Path(output_dir).resolve()
         self.io_utils = IOUtils()
         
         # Create output directory

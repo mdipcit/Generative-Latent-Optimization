@@ -10,6 +10,8 @@ from . import optimization
 from . import metrics
 from . import utils
 from . import evaluation
+from . import dataset
+from . import config
 
 # Import commonly used classes and functions
 from .optimization import LatentOptimizer, OptimizationConfig, OptimizationResult
@@ -35,6 +37,8 @@ __all__ = [
     'metrics', 
     'utils',
     'evaluation',
+    'dataset',
+    'config',
     # Core Classes
     'LatentOptimizer',
     'OptimizationConfig', 

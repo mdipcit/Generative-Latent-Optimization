@@ -118,10 +118,16 @@ class LatentOptimizer:
             final_ssim = self._calculate_ssim_basic(target_image, final_reconstructed)
         
         # Prepare result
+        # Calculate loss reduction with zero-division protection
+        if losses and losses[0] > 0:
+            loss_reduction = ((losses[0] - losses[-1]) / losses[0]) * 100
+        else:
+            loss_reduction = 0.0  # No reduction if initial loss is zero
+            
         metrics = {
             'final_psnr_db': final_psnr,
             'final_ssim': final_ssim,
-            'loss_reduction_percent': ((losses[0] - losses[-1]) / losses[0]) * 100,
+            'loss_reduction_percent': loss_reduction,
             'total_iterations': len(losses)
         }
         

@@ -69,6 +69,10 @@ class ComprehensiveDatasetEvaluator:
         Returns:
             Complete evaluation results including individual metrics stats + FID score
         """
+        # Normalize paths
+        dataset_path = Path(dataset_path).resolve()
+        original_bsds500_path = Path(original_bsds500_path).resolve()
+        
         logger.info("=== Starting comprehensive dataset evaluation ===")
         logger.info(f"Dataset: {dataset_path}")
         logger.info(f"Original: {original_bsds500_path}")
