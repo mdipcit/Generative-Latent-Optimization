@@ -22,6 +22,7 @@ sys.path.append(str(project_root))
 from src.generative_latent_optimization.optimization.latent_optimizer import (
     LatentOptimizer, OptimizationConfig, OptimizationResult
 )
+from src.generative_latent_optimization.metrics.image_metrics import ImageMetrics
 from tests.fixtures.test_helpers import (
     TestImageGenerator, setup_test_device, calculate_metrics,
     print_test_header, print_test_result
@@ -453,18 +454,21 @@ class TestLatentOptimizer:
         """Test internal PSNR calculation accuracy"""
         print_test_header("PSNR Calculation Accuracy Test")
         
+        # Initialize metrics calculator
+        metrics = ImageMetrics(device=device)
+        
         # Test with known values
         img1 = torch.ones(1, 3, 64, 64, device=device) * 0.5
         img2 = torch.ones(1, 3, 64, 64, device=device) * 0.5
         
         # Identical images should have infinite PSNR (or very high)
-        psnr_identical = LatentOptimizer._calculate_psnr(img1, img2)
+        psnr_identical = metrics.calculate_psnr(img1, img2)
         assert psnr_identical > 100  # Very high PSNR for identical images
         print_test_result("Identical images PSNR", True, f"PSNR: {psnr_identical:.2f}dB")
         
         # Different images should have finite PSNR
         img2_different = torch.ones(1, 3, 64, 64, device=device) * 0.8
-        psnr_different = LatentOptimizer._calculate_psnr(img1, img2_different)
+        psnr_different = metrics.calculate_psnr(img1, img2_different)
         assert 0 < psnr_different < 100
         print_test_result("Different images PSNR", True, f"PSNR: {psnr_different:.2f}dB")
     
@@ -472,18 +476,21 @@ class TestLatentOptimizer:
         """Test internal SSIM calculation accuracy"""
         print_test_header("SSIM Calculation Accuracy Test")
         
+        # Initialize metrics calculator
+        metrics = ImageMetrics(device=device)
+        
         # Test with known values
         img1 = TestImageGenerator.solid_color((0.5, 0.5, 0.5), device=device)
         img2 = TestImageGenerator.solid_color((0.5, 0.5, 0.5), device=device)
         
         # Identical images should have SSIM = 1
-        ssim_identical = LatentOptimizer._calculate_ssim_basic(img1, img2)
+        ssim_identical = metrics.calculate_ssim(img1, img2)
         assert 0.99 <= ssim_identical <= 1.01  # Allow small numerical errors
         print_test_result("Identical images SSIM", True, f"SSIM: {ssim_identical:.4f}")
         
         # Very different images should have lower SSIM
         img2_different = TestImageGenerator.solid_color((1.0, 0.0, 0.0), device=device)
-        ssim_different = LatentOptimizer._calculate_ssim_basic(img1, img2_different)
+        ssim_different = metrics.calculate_ssim(img1, img2_different)
         assert 0 <= ssim_different < 0.9
         print_test_result("Different images SSIM", True, f"SSIM: {ssim_different:.4f}")
     
