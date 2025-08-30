@@ -1,0 +1,1 @@
+"""Integration tests for workflows and component interactions"""
