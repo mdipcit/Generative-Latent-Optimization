@@ -161,6 +161,8 @@ class IndividualMetricsCalculator:
         Returns:
             Dictionary with mean, std, min, max for each metric
         """
+        from ..utils.io_utils import StatisticsCalculator
+        
         # Filter out None results
         valid_results = [r for r in batch_results if r is not None]
         
@@ -173,19 +175,25 @@ class IndividualMetricsCalculator:
         mse_values = [r.mse for r in valid_results]
         mae_values = [r.mae for r in valid_results]
         
+        # Use StatisticsCalculator for all metrics
+        psnr_stats = StatisticsCalculator.calculate_basic_stats(psnr_values, 'psnr')
+        ssim_stats = StatisticsCalculator.calculate_basic_stats(ssim_values, 'ssim')
+        mse_stats = StatisticsCalculator.calculate_basic_stats(mse_values, 'mse')
+        mae_stats = StatisticsCalculator.calculate_basic_stats(mae_values, 'mae')
+        
         statistics = {
-            'psnr_mean': sum(psnr_values) / len(psnr_values),
-            'psnr_std': self._calculate_std(psnr_values),
-            'psnr_min': min(psnr_values),
-            'psnr_max': max(psnr_values),
-            'ssim_mean': sum(ssim_values) / len(ssim_values),
-            'ssim_std': self._calculate_std(ssim_values),
-            'ssim_min': min(ssim_values),
-            'ssim_max': max(ssim_values),
-            'mse_mean': sum(mse_values) / len(mse_values),
-            'mse_std': self._calculate_std(mse_values),
-            'mae_mean': sum(mae_values) / len(mae_values),
-            'mae_std': self._calculate_std(mae_values),
+            'psnr_mean': psnr_stats['mean'],
+            'psnr_std': psnr_stats['std'],
+            'psnr_min': psnr_stats['min'],
+            'psnr_max': psnr_stats['max'],
+            'ssim_mean': ssim_stats['mean'],
+            'ssim_std': ssim_stats['std'],
+            'ssim_min': ssim_stats['min'],
+            'ssim_max': ssim_stats['max'],
+            'mse_mean': mse_stats['mean'],
+            'mse_std': mse_stats['std'],
+            'mae_mean': mae_stats['mean'],
+            'mae_std': mae_stats['std'],
             'valid_samples': len(valid_results),
             'total_samples': len(batch_results)
         }
@@ -193,33 +201,26 @@ class IndividualMetricsCalculator:
         # Add LPIPS statistics if available
         lpips_values = [r.lpips for r in valid_results if r.lpips is not None]
         if lpips_values:
+            lpips_stats = StatisticsCalculator.calculate_basic_stats(lpips_values, 'lpips')
             statistics.update({
-                'lpips_mean': sum(lpips_values) / len(lpips_values),
-                'lpips_std': self._calculate_std(lpips_values),
-                'lpips_min': min(lpips_values),
-                'lpips_max': max(lpips_values)
+                'lpips_mean': lpips_stats['mean'],
+                'lpips_std': lpips_stats['std'],
+                'lpips_min': lpips_stats['min'],
+                'lpips_max': lpips_stats['max']
             })
         
         # Add improved SSIM statistics if available
         ssim_improved_values = [r.ssim_improved for r in valid_results if r.ssim_improved is not None]
         if ssim_improved_values:
+            ssim_imp_stats = StatisticsCalculator.calculate_basic_stats(ssim_improved_values, 'ssim_improved')
             statistics.update({
-                'ssim_improved_mean': sum(ssim_improved_values) / len(ssim_improved_values),
-                'ssim_improved_std': self._calculate_std(ssim_improved_values),
-                'ssim_improved_min': min(ssim_improved_values),
-                'ssim_improved_max': max(ssim_improved_values)
+                'ssim_improved_mean': ssim_imp_stats['mean'],
+                'ssim_improved_std': ssim_imp_stats['std'],
+                'ssim_improved_min': ssim_imp_stats['min'],
+                'ssim_improved_max': ssim_imp_stats['max']
             })
         
         return statistics
-    
-    def _calculate_std(self, values: List[float]) -> float:
-        """Calculate standard deviation"""
-        if len(values) < 2:
-            return 0.0
-        
-        mean = sum(values) / len(values)
-        variance = sum((x - mean) ** 2 for x in values) / (len(values) - 1)
-        return variance ** 0.5
 
 
 # Utility functions for testing

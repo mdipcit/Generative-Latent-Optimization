@@ -354,13 +354,10 @@ class ComprehensiveDatasetEvaluator:
             return "Results need improvement - Review optimization parameters and increase iterations"
     
     def _calculate_std(self, values: List[float]) -> float:
-        """Calculate standard deviation"""
-        if len(values) < 2:
-            return 0.0
-        
-        mean = sum(values) / len(values)
-        variance = sum((x - mean) ** 2 for x in values) / (len(values) - 1)
-        return variance ** 0.5
+        """Calculate standard deviation using StatisticsCalculator"""
+        from ..utils.io_utils import StatisticsCalculator
+        stats = StatisticsCalculator.calculate_basic_stats(values)
+        return stats.get('std', 0.0) if stats else 0.0
 
 
 # Utility functions for testing
