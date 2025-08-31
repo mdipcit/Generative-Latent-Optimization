@@ -1,4 +1,4 @@
-"""I/O Utilities Module"""
+"""Utilities Module"""
 
 from .io_utils import (
     IOUtils,
@@ -8,6 +8,8 @@ from .io_utils import (
     StatisticsCalculator,
     FileUtils
 )
+from .path_utils import PathUtils
+from .image_loader import UnifiedImageLoader
 
 __all__ = [
     'IOUtils',
@@ -15,5 +17,7 @@ __all__ = [
     'save_image_tensor',
     'create_results_saver',
     'StatisticsCalculator',
-    'FileUtils'
+    'FileUtils',
+    'PathUtils',
+    'UnifiedImageLoader'
 ]
