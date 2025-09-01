@@ -715,6 +715,65 @@ def run_all_tests():
         return False
 
 
+def test_individual_metrics_calculator_migrated(device='cuda'):
+    """
+    Test individual metrics calculator functionality
+    (Migrated from metrics_integration.py)
+    """
+    print_test_header("Individual Metrics Calculator - Migrated")
+    
+    try:
+        from src.generative_latent_optimization.metrics.metrics_integration import IndividualMetricsCalculator
+        
+        calculator = IndividualMetricsCalculator(
+            device=device,
+            enable_lpips=True,
+            enable_improved_ssim=True
+        )
+        
+        # Create test images
+        original = torch.rand(1, 3, 256, 256).to(device)
+        reconstructed = original + torch.randn_like(original) * 0.1
+        
+        # Test single image calculation
+        print("  Testing single image metrics...")
+        metrics = calculator.calculate_all_individual_metrics(original, reconstructed)
+        
+        print(f"    PSNR: {metrics.psnr_db:.2f} dB")
+        print(f"    SSIM: {metrics.ssim:.4f}")
+        print(f"    MSE: {metrics.mse:.6f}")
+        print(f"    MAE: {metrics.mae:.6f}")
+        if metrics.lpips is not None:
+            print(f"    LPIPS: {metrics.lpips:.4f}")
+        if metrics.ssim_improved is not None:
+            print(f"    SSIM (improved): {metrics.ssim_improved:.4f}")
+        
+        # Test batch calculation
+        print("  Testing batch metrics...")
+        batch_original = torch.rand(4, 3, 256, 256).to(device)
+        batch_reconstructed = batch_original + torch.randn_like(batch_original) * 0.1
+        
+        batch_results = calculator.calculate_batch_individual_metrics(
+            batch_original, batch_reconstructed
+        )
+        
+        print(f"    Batch size: {len(batch_results)}")
+        
+        # Test statistics calculation
+        stats = calculator.get_batch_statistics(batch_results)
+        print(f"    Mean PSNR: {stats['psnr_mean']:.2f} dB")
+        print(f"    Mean SSIM: {stats['ssim_mean']:.4f}")
+        if 'lpips_mean' in stats:
+            print(f"    Mean LPIPS: {stats['lpips_mean']:.4f}")
+        
+        print_test_result(True, "Individual metrics calculator test passed")
+        
+    except Exception as e:
+        print_test_result(False, f"Individual metrics calculator test failed: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 if __name__ == "__main__":
     success = run_all_tests()
     exit(0 if success else 1)
