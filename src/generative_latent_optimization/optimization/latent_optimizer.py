@@ -12,7 +12,7 @@ from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from tqdm import tqdm
 from contextlib import contextmanager
-from ..metrics.image_metrics import ImageMetrics
+from ..metrics.unified_calculator import UnifiedMetricsCalculator
 from ..core.device_manager import DeviceManager
 from ..utils.io_utils import StatisticsCalculator
 
@@ -75,7 +75,7 @@ class LatentOptimizer:
     
     def __init__(self, config: OptimizationConfig):
         self.config = config
-        self.metrics = ImageMetrics(device=config.device)
+        self.metrics = UnifiedMetricsCalculator(device=config.device, enable_lpips=False, enable_improved_ssim=False)
     
     @contextmanager
     def _freeze_vae_decoder(self, vae):
@@ -180,7 +180,7 @@ class LatentOptimizer:
         with torch.no_grad():
             final_outputs = vae.decode(optimized_latents)
             final_reconstructed = (final_outputs.sample / 2 + 0.5).clamp(0, 1)
-            final_metrics = self.metrics.calculate_all_metrics(target_image, final_reconstructed)
+            final_metrics = self.metrics.calculate_legacy(target_image, final_reconstructed)
             final_psnr = final_metrics.psnr_db
             final_ssim = final_metrics.ssim
         
@@ -389,7 +389,7 @@ class LatentOptimizer:
                 single_latent = raw_results.optimized_latents[j:j+1]
                 
                 # Calculate metrics
-                final_metrics = self.metrics.calculate_all_metrics(single_target, single_recon)
+                final_metrics = self.metrics.calculate_legacy(single_target, single_recon)
                 
                 # Calculate loss reduction
                 losses = raw_results.batch_losses[j]
