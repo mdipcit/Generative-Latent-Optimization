@@ -18,19 +18,21 @@ import torch
 from PIL import Image
 
 try:
-    from ..metrics.metrics_integration import IndividualMetricsCalculator
+    from ..metrics.unified_calculator import UnifiedMetricsCalculator
     from ..metrics.dataset_metrics import DatasetFIDEvaluator
     from ..metrics.image_metrics import AllMetricsResults, IndividualImageMetrics
     from ..utils.io_utils import StatisticsCalculator, FileUtils
+    from ..utils.image_matcher import ImageMatcher
 except ImportError:
     # For direct execution as script
     import sys
     parent_path = Path(__file__).parent.parent
     sys.path.append(str(parent_path))
-    from metrics.metrics_integration import IndividualMetricsCalculator
+    from metrics.unified_calculator import UnifiedMetricsCalculator
     from metrics.dataset_metrics import DatasetFIDEvaluator
     from metrics.image_metrics import AllMetricsResults, IndividualImageMetrics
     from utils.io_utils import StatisticsCalculator, FileUtils
+    from utils.image_matcher import ImageMatcher
 
 logger = logging.getLogger(__name__)
 
@@ -51,30 +53,33 @@ class SimpleAllMetricsEvaluator:
     - FID (Fréchet Inception Distance)
     """
     
-    def __init__(self, device='cuda', enable_lpips=True, enable_improved_ssim=True):
+    def __init__(self, device='cuda', use_lpips=True, use_improved_ssim=True):
         """
         Initialize the simple evaluator
         
         Args:
             device: Computation device ('cuda' or 'cpu')
-            enable_lpips: Whether to enable LPIPS calculation
-            enable_improved_ssim: Whether to enable improved SSIM calculation
+            use_lpips: Whether to use LPIPS calculation
+            use_improved_ssim: Whether to use improved SSIM calculation
         """
         self.device = device
         
-        # Initialize individual metrics calculator
-        self.individual_calculator = IndividualMetricsCalculator(
+        # Initialize unified metrics calculator
+        self.individual_calculator = UnifiedMetricsCalculator(
             device=device,
-            enable_lpips=enable_lpips,
-            enable_improved_ssim=enable_improved_ssim
+            use_lpips=use_lpips,
+            use_improved_ssim=use_improved_ssim
         )
         
         # Initialize FID evaluator
         self.fid_evaluator = DatasetFIDEvaluator(device=device)
         
+        # Initialize image matcher for pair matching
+        self.image_matcher = ImageMatcher(match_strategy='stem')
+        
         logger.info(f"Simple All Metrics Evaluator initialized on {device}")
-        logger.info(f"  LPIPS: {'enabled' if enable_lpips else 'disabled'}")
-        logger.info(f"  Improved SSIM: {'enabled' if enable_improved_ssim else 'disabled'}")
+        logger.info(f"  LPIPS: {'enabled' if use_lpips else 'disabled'}")
+        logger.info(f"  Improved SSIM: {'enabled' if use_improved_ssim else 'disabled'}")
     
     def evaluate_dataset_all_metrics(self, 
                                    created_dataset_path: Union[str, Path],
@@ -130,7 +135,7 @@ class SimpleAllMetricsEvaluator:
     
     def _load_image_pairs(self, created_path: Path, original_path: Path) -> List[Tuple[torch.Tensor, torch.Tensor]]:
         """
-        Load image pairs from both datasets
+        Load image pairs from both datasets using ImageMatcher
         
         Args:
             created_path: Path to created dataset
@@ -139,20 +144,8 @@ class SimpleAllMetricsEvaluator:
         Returns:
             List of (original_image, created_image) tensor pairs
         """
-        # Get image files from both datasets
-        created_images = self._get_image_files(created_path)
-        original_images = self._get_image_files(original_path)
-        
-        logger.info(f"Found {len(created_images)} created images")
-        logger.info(f"Found {len(original_images)} original images")
-        
-        # Match images by filename
-        image_pairs = self._match_image_pairs(original_images, created_images)
-        
-        if not image_pairs:
-            raise ValueError("No matching image pairs found between datasets")
-        
-        logger.info(f"Matched {len(image_pairs)} image pairs")
+        # Use ImageMatcher to find matching pairs
+        image_pairs = self.image_matcher.find_image_pairs(created_path, original_path)
         
         # Load and preprocess image pairs
         tensor_pairs = []
@@ -171,45 +164,6 @@ class SimpleAllMetricsEvaluator:
                 continue
         
         return tensor_pairs
-    
-    def _get_image_files(self, path: Path) -> List[Path]:
-        """Get all image files from a directory"""
-        image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff'}
-        image_files = []
-        
-        if path.is_file():
-            if path.suffix.lower() in image_extensions:
-                image_files.append(path)
-        else:
-            # Recursively find all image files
-            for ext in image_extensions:
-                image_files.extend(path.glob(f'**/*{ext}'))
-                image_files.extend(path.glob(f'**/*{ext.upper()}'))
-        
-        return sorted(image_files)
-    
-    def _match_image_pairs(self, original_images: List[Path], created_images: List[Path]) -> List[Tuple[Path, Path]]:
-        """
-        Match images between original and created datasets by filename
-        
-        Args:
-            original_images: List of original image paths
-            created_images: List of created image paths
-            
-        Returns:
-            List of (original_path, created_path) pairs
-        """
-        # Create dictionaries for efficient lookup
-        original_dict = {img.stem: img for img in original_images}
-        created_dict = {img.stem: img for img in created_images}
-        
-        # Find matching pairs
-        pairs = []
-        for stem in original_dict.keys():
-            if stem in created_dict:
-                pairs.append((original_dict[stem], created_dict[stem]))
-        
-        return pairs
     
     def _load_image_as_tensor(self, image_path: Path) -> torch.Tensor:
         """
@@ -280,7 +234,7 @@ class SimpleAllMetricsEvaluator:
                 created = created.to(self.device)
                 
                 # Calculate all individual metrics
-                metrics = self.individual_calculator.calculate_all_individual_metrics(
+                metrics = self.individual_calculator.calculate(
                     original, created
                 )
                 results.append(metrics)
