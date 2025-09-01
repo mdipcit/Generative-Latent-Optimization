@@ -27,6 +27,11 @@ from .metrics_integration import (
     IndividualMetricsCalculator
 )
 
+# Unified calculator
+from .unified_calculator import (
+    UnifiedMetricsCalculator
+)
+
 __all__ = [
     # Legacy (backward compatibility)
     'ImageMetrics',
@@ -42,5 +47,7 @@ __all__ = [
     # Dataset metrics
     'DatasetFIDEvaluator',
     # Integrated calculators
-    'IndividualMetricsCalculator'
+    'IndividualMetricsCalculator',
+    # Unified calculator
+    'UnifiedMetricsCalculator'
 ]

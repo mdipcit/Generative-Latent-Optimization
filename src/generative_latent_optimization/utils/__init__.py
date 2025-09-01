@@ -10,6 +10,7 @@ from .io_utils import (
 )
 from .path_utils import PathUtils
 from .image_loader import UnifiedImageLoader
+from .image_matcher import ImageMatcher
 
 __all__ = [
     'IOUtils',
@@ -19,5 +20,6 @@ __all__ = [
     'StatisticsCalculator',
     'FileUtils',
     'PathUtils',
-    'UnifiedImageLoader'
+    'UnifiedImageLoader',
+    'ImageMatcher'
 ]

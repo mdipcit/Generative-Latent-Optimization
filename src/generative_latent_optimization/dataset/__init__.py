@@ -18,6 +18,10 @@ from .png_dataset import (
     PNGDatasetMetadata,
     create_png_dataset_from_results
 )
+from .factory import (
+    DatasetFactory,
+    UnifiedDatasetBuilder
+)
 
 __all__ = [
     # Batch Processing
@@ -34,5 +38,8 @@ __all__ = [
     # PNG Dataset
     'PNGDatasetBuilder',
     'PNGDatasetMetadata',
-    'create_png_dataset_from_results'
+    'create_png_dataset_from_results',
+    # Dataset Factory
+    'DatasetFactory',
+    'UnifiedDatasetBuilder'
 ]
