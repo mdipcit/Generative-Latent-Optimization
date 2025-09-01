@@ -19,7 +19,7 @@ from .metrics import (
     ImageMetrics, 
     calculate_psnr,
     # Phase 3: Enhanced metrics
-    IndividualMetricsCalculator,
+    UnifiedMetricsCalculator,
     LPIPSMetric,
     ImprovedSSIM,
     DatasetFIDEvaluator,
@@ -50,7 +50,7 @@ __all__ = [
     'ImageMetrics',
     'calculate_psnr',
     # Phase 3: Enhanced Metrics
-    'IndividualMetricsCalculator',
+    'UnifiedMetricsCalculator',
     'LPIPSMetric',
     'ImprovedSSIM', 
     'DatasetFIDEvaluator',
