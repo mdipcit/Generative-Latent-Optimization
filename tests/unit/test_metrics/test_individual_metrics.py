@@ -596,6 +596,68 @@ def run_all_tests():
         return False
 
 
+def test_lpips_functionality_migrated(device='cuda'):
+    """
+    Test LPIPS metric functionality
+    (Migrated from individual_metrics.py)
+    """
+    print_test_header("LPIPS Functionality - Migrated")
+    
+    try:
+        from src.generative_latent_optimization.metrics.individual_metrics import LPIPSMetric
+        
+        lpips_metric = LPIPSMetric(device=device)
+        
+        # Create test images
+        img1 = torch.randn(1, 3, 256, 256).to(device)
+        img2 = img1 + torch.randn_like(img1) * 0.1  # Similar image with noise
+        img3 = torch.randn(1, 3, 256, 256).to(device)  # Different image
+        
+        # Test calculations
+        lpips_similar = lpips_metric.calculate(img1, img2)
+        lpips_different = lpips_metric.calculate(img1, img3)
+        
+        print(f"  LPIPS (similar images): {lpips_similar:.4f}")
+        print(f"  LPIPS (different images): {lpips_different:.4f}")
+        
+        test_passed = lpips_similar < lpips_different
+        print_test_result(test_passed, f"LPIPS test: {lpips_similar < lpips_different}")
+        
+    except Exception as e:
+        print_test_result(False, f"LPIPS test failed: {e}")
+
+
+def test_improved_ssim_functionality_migrated(device='cuda'):
+    """
+    Test improved SSIM metric functionality
+    (Migrated from individual_metrics.py)
+    """
+    print_test_header("Improved SSIM Functionality - Migrated")
+    
+    try:
+        from src.generative_latent_optimization.metrics.individual_metrics import ImprovedSSIM
+        
+        ssim_metric = ImprovedSSIM(device=device)
+        
+        # Create test images
+        img1 = torch.rand(1, 3, 256, 256).to(device)  # [0,1] range
+        img2 = img1 + torch.randn_like(img1) * 0.05   # Similar image with small noise
+        img3 = torch.rand(1, 3, 256, 256).to(device)  # Different image
+        
+        # Test calculations
+        ssim_similar = ssim_metric.calculate(img1, img2)
+        ssim_different = ssim_metric.calculate(img1, img3)
+        
+        print(f"  SSIM (similar images): {ssim_similar:.4f}")
+        print(f"  SSIM (different images): {ssim_different:.4f}")
+        
+        test_passed = ssim_similar > ssim_different
+        print_test_result(test_passed, f"SSIM test: {ssim_similar > ssim_different}")
+        
+    except Exception as e:
+        print_test_result(False, f"Improved SSIM test failed: {e}")
+
+
 if __name__ == "__main__":
     success = run_all_tests()
     exit(0 if success else 1)

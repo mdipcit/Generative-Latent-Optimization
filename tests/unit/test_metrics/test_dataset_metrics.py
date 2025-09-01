@@ -760,6 +760,62 @@ def run_all_tests():
         return False
 
 
+def test_fid_evaluator_with_dummy_data_migrated(device='cuda'):
+    """
+    Test FID evaluator functionality with dummy data
+    (Migrated from dataset_metrics.py)
+    
+    Args:
+        device: Computation device
+    """
+    print_test_header("FID Evaluator with Dummy Data - Migrated")
+    
+    try:
+        from src.generative_latent_optimization.metrics.dataset_metrics import DatasetFIDEvaluator
+        from torchvision.utils import save_image
+        
+        evaluator = DatasetFIDEvaluator(batch_size=10, device=device)
+        
+        # Create temporary directories with dummy images
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            
+            # Create dummy dataset 1
+            dataset1_dir = temp_path / 'dataset1'
+            dataset1_dir.mkdir()
+            
+            # Create dummy dataset 2  
+            dataset2_dir = temp_path / 'dataset2'
+            dataset2_dir.mkdir()
+            
+            # Generate dummy images
+            print("  Generating dummy images...")
+            for i in range(20):
+                # Dataset 1: Random images
+                img1 = torch.rand(3, 64, 64)
+                save_image(img1, dataset1_dir / f'img_{i:03d}.png', normalize=True)
+                
+                # Dataset 2: Slightly different random images
+                img2 = torch.rand(3, 64, 64)
+                save_image(img2, dataset2_dir / f'img_{i:03d}.png', normalize=True)
+            
+            # Test FID computation
+            print("  Computing FID between dummy datasets...")
+            result = evaluator.evaluate_created_dataset_vs_original(
+                dataset2_dir, dataset1_dir
+            )
+            
+            print(f"  FID Score: {result.fid_score:.2f}")
+            print(f"  Total images: {result.total_images}")
+            
+            print_test_result(True, "FID computed successfully")
+            
+    except Exception as e:
+        print_test_result(False, f"FID evaluator test failed: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 if __name__ == "__main__":
     success = run_all_tests()
     exit(0 if success else 1)
