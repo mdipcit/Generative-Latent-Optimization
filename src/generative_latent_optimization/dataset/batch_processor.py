@@ -62,6 +62,36 @@ class ProcessingCheckpoint:
     timestamp: str
 
 
+@dataclass
+class ProcessingSetup:
+    """Setup data for batch processing"""
+    input_dir: Path
+    output_dir: Path
+    image_files: List[Path]
+    checkpoint_path: Path
+    processed_files: List[str]
+    results_so_far: List[Dict[str, Any]]
+    start_index: int
+    vae: Any
+    optimizer: LatentOptimizer
+    device: str
+
+
+@dataclass
+class ProcessingState:
+    """Current state during batch processing"""
+    successful: int = 0
+    failed: int = 0
+    psnr_improvements: List[float] = None
+    loss_reductions: List[float] = None
+    
+    def __post_init__(self):
+        if self.psnr_improvements is None:
+            self.psnr_improvements = []
+        if self.loss_reductions is None:
+            self.loss_reductions = []
+
+
 class BatchProcessor:
     """
     Batch processing engine for VAE latent optimization
@@ -99,6 +129,30 @@ class BatchProcessor:
         """
         start_time = time.time()
         
+        # Setup processing environment
+        setup = self._setup_processing_environment(
+            input_dir, output_dir, optimization_config, vae_model_name
+        )
+        
+        # Execute batch processing
+        state = self._execute_batch_processing_loop(setup, optimization_config)
+        
+        # Generate final results
+        processing_time = time.time() - start_time
+        results = self._generate_processing_report(
+            setup, state, processing_time, optimization_config
+        )
+        
+        return results
+    
+    def _setup_processing_environment(self, input_dir: Union[str, Path],
+                                     output_dir: Union[str, Path],
+                                     optimization_config: OptimizationConfig,
+                                     vae_model_name: str) -> ProcessingSetup:
+        """
+        Setup the processing environment including directories, files, and models
+        """
+        # Prepare directories
         input_dir = Path(input_dir).resolve()
         output_dir = Path(output_dir).resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -112,7 +166,7 @@ class BatchProcessor:
         
         print(f"Found {len(image_files)} images to process")
         
-        # Check for existing checkpoint
+        # Setup checkpoint
         checkpoint_path = self.checkpoint_dir / f"checkpoint_{input_dir.name}_{output_dir.name}.pkl"
         processed_files, results_so_far, start_index = self._load_checkpoint(
             checkpoint_path, image_files, optimization_config
@@ -121,72 +175,104 @@ class BatchProcessor:
         if start_index > 0:
             print(f"📂 Resuming from checkpoint: {start_index}/{len(image_files)} images already processed")
         
-        # Load VAE model
+        # Load models
         print("Loading VAE model...")
         device = optimization_config.device if hasattr(optimization_config, 'device') else 'cuda'
         vae, device = VAELoader.load_sd_vae_simple(vae_model_name, device)
-        
-        # Initialize optimizer
         optimizer = LatentOptimizer(optimization_config)
         
-        # Process remaining images
-        successful = 0
-        failed = 0
-        psnr_improvements = []
-        loss_reductions = []
+        return ProcessingSetup(
+            input_dir=input_dir,
+            output_dir=output_dir,
+            image_files=image_files,
+            checkpoint_path=checkpoint_path,
+            processed_files=processed_files,
+            results_so_far=results_so_far,
+            start_index=start_index,
+            vae=vae,
+            optimizer=optimizer,
+            device=device
+        )
+    
+    def _execute_batch_processing_loop(self, setup: ProcessingSetup,
+                                      optimization_config: OptimizationConfig) -> ProcessingState:
+        """
+        Execute the main batch processing loop
+        """
+        state = ProcessingState()
         
-        for i in tqdm(range(start_index, len(image_files)), desc="Processing images"):
-            image_path = image_files[i]
+        for i in tqdm(range(setup.start_index, len(setup.image_files)), desc="Processing images"):
+            image_path = setup.image_files[i]
             
             try:
                 # Process single image
                 result = self._process_single_image(
-                    image_path, output_dir, vae, optimizer, device
+                    image_path, setup.output_dir, setup.vae, setup.optimizer, setup.device
                 )
                 
                 if result:
-                    successful += 1
-                    psnr_improvements.append(result['psnr_improvement'])
-                    loss_reductions.append(result['loss_reduction'])
-                    results_so_far.append(result)
+                    state.successful += 1
+                    state.psnr_improvements.append(result['psnr_improvement'])
+                    state.loss_reductions.append(result['loss_reduction'])
+                    setup.results_so_far.append(result)
                 else:
-                    failed += 1
+                    state.failed += 1
                 
-                # Save checkpoint periodically
+                # Checkpoint management
                 if (i + 1) % 10 == 0:
-                    self._save_checkpoint(
-                        checkpoint_path, processed_files + [str(p) for p in image_files[:i+1]],
-                        optimization_config, i, results_so_far
+                    self._manage_checkpoint(
+                        setup, optimization_config, i, state
                     )
                     
             except Exception as e:
                 print(f"❌ Failed to process {image_path}: {e}")
-                failed += 1
+                state.failed += 1
                 continue
         
-        # Calculate final statistics
-        total_processed = successful + failed
-        avg_psnr = sum(psnr_improvements) / len(psnr_improvements) if psnr_improvements else 0
-        avg_loss = sum(loss_reductions) / len(loss_reductions) if loss_reductions else 0
-        
-        processing_time = time.time() - start_time
+        return state
+    
+    def _manage_checkpoint(self, setup: ProcessingSetup,
+                          optimization_config: OptimizationConfig,
+                          current_index: int, state: ProcessingState):
+        """
+        Manage checkpoint saving during processing
+        """
+        self._save_checkpoint(
+            setup.checkpoint_path,
+            setup.processed_files + [str(p) for p in setup.image_files[:current_index+1]],
+            optimization_config,
+            current_index,
+            setup.results_so_far
+        )
+    
+    def _generate_processing_report(self, setup: ProcessingSetup,
+                                   state: ProcessingState,
+                                   processing_time: float,
+                                   optimization_config: OptimizationConfig) -> ProcessingResults:
+        """
+        Generate final processing report and clean up
+        """
+        # Calculate statistics
+        total_processed = state.successful + state.failed
+        avg_psnr = sum(state.psnr_improvements) / len(state.psnr_improvements) if state.psnr_improvements else 0
+        avg_loss = sum(state.loss_reductions) / len(state.loss_reductions) if state.loss_reductions else 0
         
         # Clean up checkpoint if completed successfully
-        if checkpoint_path.exists() and failed == 0:
-            checkpoint_path.unlink()
+        if setup.checkpoint_path.exists() and state.failed == 0:
+            setup.checkpoint_path.unlink()
         
         # Save summary results
-        self._save_processing_summary(output_dir, results_so_far, processing_time)
+        self._save_processing_summary(setup.output_dir, setup.results_so_far, processing_time)
         
         return ProcessingResults(
             total_processed=total_processed,
-            successful_optimizations=successful,
-            failed_optimizations=failed,
+            successful_optimizations=state.successful,
+            failed_optimizations=state.failed,
             average_psnr_improvement=avg_psnr,
             average_loss_reduction=avg_loss,
             processing_time_seconds=processing_time,
-            output_directory=str(output_dir),
-            checkpoint_path=str(checkpoint_path) if checkpoint_path.exists() else None
+            output_directory=str(setup.output_dir),
+            checkpoint_path=str(setup.checkpoint_path) if setup.checkpoint_path.exists() else None
         )
     
     def process_bsds500_dataset(self, bsds500_path: Union[str, Path],
