@@ -32,18 +32,18 @@ class IndividualMetricsCalculator:
     including basic metrics (PSNR, SSIM, MSE, MAE) and advanced metrics (LPIPS, Improved SSIM).
     """
     
-    def __init__(self, device='cuda', enable_lpips=True, enable_improved_ssim=True):
+    def __init__(self, device='cuda', use_lpips=True, use_improved_ssim=True):
         """
         Initialize metrics calculator
         
         Args:
             device: Computation device
-            enable_lpips: Whether to enable LPIPS calculation
-            enable_improved_ssim: Whether to enable improved SSIM calculation
+            use_lpips: Whether to use LPIPS calculation
+            use_improved_ssim: Whether to use improved SSIM calculation
         """
         self.device = device
-        self.enable_lpips = enable_lpips
-        self.enable_improved_ssim = enable_improved_ssim
+        self.use_lpips = use_lpips
+        self.use_improved_ssim = use_improved_ssim
         
         # Initialize basic metrics
         self.basic_metrics = ImageMetrics(device=device)
@@ -52,25 +52,25 @@ class IndividualMetricsCalculator:
         self.lpips = None
         self.ssim_improved = None
         
-        if enable_lpips:
+        if use_lpips:
             try:
                 self.lpips = LPIPSMetric(device=device)
                 logger.info("LPIPS metric enabled")
             except Exception as e:
                 logger.warning(f"Failed to initialize LPIPS: {e}")
-                self.enable_lpips = False
+                self.use_lpips = False
         
-        if enable_improved_ssim:
+        if use_improved_ssim:
             try:
                 self.ssim_improved = ImprovedSSIM(device=device)
                 logger.info("Improved SSIM metric enabled")
             except Exception as e:
                 logger.warning(f"Failed to initialize improved SSIM: {e}")
-                self.enable_improved_ssim = False
+                self.use_improved_ssim = False
         
         logger.info(f"Individual metrics calculator initialized on {device}")
-        logger.info(f"  LPIPS: {'enabled' if self.enable_lpips else 'disabled'}")
-        logger.info(f"  Improved SSIM: {'enabled' if self.enable_improved_ssim else 'disabled'}")
+        logger.info(f"  LPIPS: {'enabled' if self.use_lpips else 'disabled'}")
+        logger.info(f"  Improved SSIM: {'enabled' if self.use_improved_ssim else 'disabled'}")
     
     def calculate_all_individual_metrics(self, original: torch.Tensor, 
                                        reconstructed: torch.Tensor) -> IndividualImageMetrics:
@@ -94,14 +94,14 @@ class IndividualMetricsCalculator:
             
             # Calculate advanced metrics
             lpips_value = None
-            if self.enable_lpips and self.lpips is not None:
+            if self.use_lpips and self.lpips is not None:
                 try:
                     lpips_value = self.lpips.calculate(original, reconstructed)
                 except Exception as e:
                     logger.warning(f"LPIPS calculation failed: {e}")
             
             ssim_improved_value = None
-            if self.enable_improved_ssim and self.ssim_improved is not None:
+            if self.use_improved_ssim and self.ssim_improved is not None:
                 try:
                     ssim_improved_value = self.ssim_improved.calculate(original, reconstructed)
                 except Exception as e:
@@ -224,65 +224,3 @@ class IndividualMetricsCalculator:
 
 
 # Utility functions for testing
-def test_individual_metrics_calculator(device='cuda'):
-    """Test individual metrics calculator functionality"""
-    print("Testing individual metrics calculator...")
-    
-    try:
-        calculator = IndividualMetricsCalculator(
-            device=device,
-            enable_lpips=True,
-            enable_improved_ssim=True
-        )
-        
-        # Create test images
-        original = torch.rand(1, 3, 256, 256).to(device)
-        reconstructed = original + torch.randn_like(original) * 0.1
-        
-        # Test single image calculation
-        print("  Testing single image metrics...")
-        metrics = calculator.calculate_all_individual_metrics(original, reconstructed)
-        
-        print(f"    PSNR: {metrics.psnr_db:.2f} dB")
-        print(f"    SSIM: {metrics.ssim:.4f}")
-        print(f"    MSE: {metrics.mse:.6f}")
-        print(f"    MAE: {metrics.mae:.6f}")
-        if metrics.lpips is not None:
-            print(f"    LPIPS: {metrics.lpips:.4f}")
-        if metrics.ssim_improved is not None:
-            print(f"    SSIM (improved): {metrics.ssim_improved:.4f}")
-        
-        # Test batch calculation
-        print("  Testing batch metrics...")
-        batch_original = torch.rand(4, 3, 256, 256).to(device)
-        batch_reconstructed = batch_original + torch.randn_like(batch_original) * 0.1
-        
-        batch_results = calculator.calculate_batch_individual_metrics(
-            batch_original, batch_reconstructed
-        )
-        
-        print(f"    Batch size: {len(batch_results)}")
-        
-        # Test statistics calculation
-        stats = calculator.get_batch_statistics(batch_results)
-        print(f"    Mean PSNR: {stats['psnr_mean']:.2f} dB")
-        print(f"    Mean SSIM: {stats['ssim_mean']:.4f}")
-        if 'lpips_mean' in stats:
-            print(f"    Mean LPIPS: {stats['lpips_mean']:.4f}")
-        
-        print("  Individual metrics calculator test passed!")
-        
-    except Exception as e:
-        print(f"  Individual metrics calculator test failed: {e}")
-        import traceback
-        traceback.print_exc()
-
-
-if __name__ == "__main__":
-    # Run functionality tests
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"Running individual metrics calculator tests on device: {device}")
-    
-    test_individual_metrics_calculator(device)
-    
-    print("Metrics integration module tests completed.")
