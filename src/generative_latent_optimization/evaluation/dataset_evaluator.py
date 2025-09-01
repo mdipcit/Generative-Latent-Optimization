@@ -12,7 +12,7 @@ from typing import Union, Dict, Any, Optional, List
 import logging
 
 try:
-    from ..metrics.metrics_integration import IndividualMetricsCalculator
+    from ..metrics.unified_calculator import UnifiedMetricsCalculator
     from ..metrics.dataset_metrics import DatasetFIDEvaluator
     from ..metrics.image_metrics import DatasetEvaluationResults
 except ImportError:
@@ -20,7 +20,7 @@ except ImportError:
     import sys
     parent_path = Path(__file__).parent.parent
     sys.path.append(str(parent_path))
-    from metrics.metrics_integration import IndividualMetricsCalculator
+    from metrics.unified_calculator import UnifiedMetricsCalculator
     from metrics.dataset_metrics import DatasetFIDEvaluator
     from metrics.image_metrics import DatasetEvaluationResults
 
@@ -47,7 +47,7 @@ class ComprehensiveDatasetEvaluator:
         self.device = device
         
         # Initialize individual metrics calculator (for potential re-calculation)
-        self.individual_calculator = IndividualMetricsCalculator(device=device)
+        self.individual_calculator = UnifiedMetricsCalculator(device=device)
         
         # Initialize FID evaluator
         self.fid_evaluator = DatasetFIDEvaluator(device=device)
