@@ -33,7 +33,7 @@ dependencies = [
     "pyyaml>=6.0",
     "requests>=2.25.0",
     # Custom toolkit
-    "vae-toolkit==0.1.0",
+    "vae-toolkit @ file:///home/kaki/ghq/github.com/mdipcit/vae-toolkit",
     "h5py>=3.14.0",
     "pytest>=8.4.1",
     "pytest-mock>=3.14.1",

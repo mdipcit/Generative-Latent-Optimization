@@ -229,7 +229,7 @@ requires-dist = [
     { name = "torchvision", specifier = ">=0.15.0" },
     { name = "tqdm", specifier = ">=4.60.0" },
     { name = "transformers", specifier = ">=4.30.0" },
-    { name = "vae-toolkit", specifier = "==0.1.0" },
+    { name = "vae-toolkit", directory = "../vae-toolkit" },
 ]
 
 [[package]]
@@ -1194,8 +1194,8 @@ wheels = [
 
 [[package]]
 name = "vae-toolkit"
-version = "0.1.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.2.0"
+source = { directory = "../vae-toolkit" }
 dependencies = [
     { name = "diffusers" },
     { name = "numpy" },
@@ -1203,10 +1203,26 @@ dependencies = [
     { name = "torch" },
     { name = "torchvision" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/54/aab17e889352307099bd62b5bf416fa300f62ad82b026af31493f66ae104/vae_toolkit-0.1.0.tar.gz", hash = "sha256:ad07060e70bf56d63f5fd2028115647c15e093f72c34e4fd220d3325b4b55435", size = 19507, upload-time = "2025-08-28T14:36:24.035Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c5/44/b75846c931ec7ba932281f94e61733931f67ac96f932d86c16f61ca20152/vae_toolkit-0.1.0-py3-none-any.whl", hash = "sha256:4534eb5ce4a35ed7534df10e0299151a6c2bbbcd52233699542f393e3763036d", size = 11867, upload-time = "2025-08-28T14:36:22.342Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "black", marker = "extra == 'dev'", specifier = ">=22.0" },
+    { name = "diffusers", specifier = ">=0.20.0" },
+    { name = "flake8", marker = "extra == 'dev'", specifier = ">=4.0" },
+    { name = "isort", marker = "extra == 'dev'", specifier = ">=5.10" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=0.900" },
+    { name = "numpy", specifier = ">=1.20.0" },
+    { name = "pillow", specifier = ">=9.0.0" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=6.0" },
+    { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=2.10" },
+    { name = "pytest-mock", marker = "extra == 'test'", specifier = ">=3.6" },
+    { name = "sphinx", marker = "extra == 'docs'", specifier = ">=4.0" },
+    { name = "sphinx-rtd-theme", marker = "extra == 'docs'", specifier = ">=1.0" },
+    { name = "torch", specifier = ">=2.0.0" },
+    { name = "torchvision", specifier = ">=0.15.0" },
+    { name = "vae-toolkit", extras = ["test", "dev", "docs"], marker = "extra == 'all'" },
 ]
+provides-extras = ["test", "dev", "docs", "all"]
 
 [[package]]
 name = "zipp"
