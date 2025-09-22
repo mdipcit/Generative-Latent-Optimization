@@ -1,0 +1,60 @@
+{
+  "release_version": "v1.0.0",
+  "release_date": "2025-09-22",
+  "experiment_date": "2025-09-03",
+  "title": "BSDS500 FID Optimization Datasets",
+  "description": "VAE latent representation optimization results on Berkeley Segmentation Dataset 500",
+  "total_images": 500,
+  "total_processing_hours": 6.9,
+  "datasets": {
+    "lpips": {
+      "filename": "bsds500_lpips_dataset.pt",
+      "size_mb": 95,
+      "fid_score": 13.10,
+      "processing_hours": 4.0,
+      "iterations": 150,
+      "learning_rate": 0.1,
+      "rank": 1,
+      "description": "LPIPS-optimized dataset - best perceptual quality"
+    },
+    "psnr": {
+      "filename": "bsds500_psnr_dataset.pt", 
+      "size_mb": 95,
+      "fid_score": 22.19,
+      "processing_hours": 1.45,
+      "iterations": 50,
+      "learning_rate": 0.05,
+      "rank": 2,
+      "description": "PSNR-optimized dataset - high efficiency and quality"
+    },
+    "improved_ssim": {
+      "filename": "bsds500_improved_ssim_dataset.pt",
+      "size_mb": 95,
+      "fid_score": 27.71,
+      "processing_hours": 1.45,
+      "iterations": 50,
+      "learning_rate": 0.1,
+      "rank": 3,
+      "description": "Improved SSIM-optimized dataset - structure preservation focus"
+    }
+  },
+  "technical_details": {
+    "vae_model": "Stable Diffusion 1.5 VAE",
+    "optimizer": "Adam",
+    "device": "CUDA",
+    "dataset_split": {
+      "train": 200,
+      "val": 100,
+      "test": 200
+    }
+  },
+  "evaluation_metrics": {
+    "primary": "FID (Fréchet Inception Distance)",
+    "additional": ["PSNR", "SSIM", "LPIPS", "MSE", "MAE"]
+  },
+  "usage": {
+    "python_version": ">=3.8",
+    "required_libraries": ["torch", "torchvision"],
+    "load_example": "dataset = torch.load('bsds500_lpips_dataset.pt')"
+  }
+}
