@@ -12,9 +12,23 @@ from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from tqdm import tqdm
 from contextlib import contextmanager
-from ..metrics.unified_calculator import UnifiedMetricsCalculator
-from ..core.device_manager import DeviceManager
+import torch_image_metrics as tim
+from vae_toolkit import DeviceManager
 from ..utils.io_utils import StatisticsCalculator
+
+# 互換性のため、削除されたモジュールのエイリアスをインポート
+try:
+    from ..metrics import UnifiedMetricsCalculator
+except ImportError:
+    # フォールバック: torch-image-metricsを直接使用
+    UnifiedMetricsCalculator = tim.Calculator
+
+# Advanced loss functions
+try:
+    import lpips
+    LPIPS_AVAILABLE = True
+except ImportError:
+    LPIPS_AVAILABLE = False
 
 
 @dataclass
@@ -22,7 +36,7 @@ class OptimizationConfig:
     """Configuration for latent optimization"""
     iterations: int = 150
     learning_rate: float = 0.4
-    loss_function: str = 'mse'  # 'mse', 'l1', 'lpips'
+    loss_function: str = 'mse'  # 'mse', 'l1', 'lpips', 'ssim', 'improved_ssim', 'psnr'
     convergence_threshold: float = 1e-6
     checkpoint_interval: int = 20
     device: str = "cuda"
@@ -75,7 +89,24 @@ class LatentOptimizer:
     
     def __init__(self, config: OptimizationConfig):
         self.config = config
-        self.metrics = UnifiedMetricsCalculator(device=config.device, enable_lpips=False, enable_improved_ssim=False)
+        
+        # torch-image-metricsのCalculatorを使用
+        self.metrics = tim.Calculator(device=config.device, use_lpips=False, use_improved_ssim=False)
+        
+        # 互換性のため既存calculatorも保持（段階的移行）
+        try:
+            self.legacy_metrics = UnifiedMetricsCalculator(device=config.device, use_lpips=False, use_improved_ssim=False)
+        except:
+            # 既存実装が削除された場合のフォールバック
+            self.legacy_metrics = None
+        
+        # Initialize LPIPS model if needed
+        if config.loss_function == 'lpips':
+            if not LPIPS_AVAILABLE:
+                raise ImportError("lpips package is required for LPIPS loss but not installed. Install with: pip install lpips")
+            self.lpips_loss = lpips.LPIPS(net='alex', verbose=False).to(config.device)
+        else:
+            self.lpips_loss = None
     
     @contextmanager
     def _freeze_vae_decoder(self, vae):
@@ -164,7 +195,7 @@ class LatentOptimizer:
                     
                     # Update progress bar
                     if i % self.config.checkpoint_interval == 0:
-                        psnr = self.metrics.calculate_psnr(target_image, reconstructed)
+                        psnr = self.metrics.compute_psnr(target_image, reconstructed)
                         pbar.set_postfix({
                             'Loss': f'{current_loss:.6f}',
                             'PSNR': f'{psnr:.2f}dB'
@@ -180,7 +211,7 @@ class LatentOptimizer:
         with torch.no_grad():
             final_outputs = vae.decode(optimized_latents)
             final_reconstructed = (final_outputs.sample / 2 + 0.5).clamp(0, 1)
-            final_metrics = self.metrics.calculate_legacy(target_image, final_reconstructed)
+            final_metrics = self.metrics.compute_all_metrics(target_image, final_reconstructed)
             final_psnr = final_metrics.psnr_db
             final_ssim = final_metrics.ssim
         
@@ -326,8 +357,8 @@ class LatentOptimizer:
         Calculate loss for batch (unified implementation)
         
         Args:
-            targets: Target images
-            reconstructed: Reconstructed images
+            targets: Target images [B, C, H, W] in [0, 1] range
+            reconstructed: Reconstructed images [B, C, H, W] in [0, 1] range
             
         Returns:
             Per-sample losses
@@ -340,10 +371,101 @@ class LatentOptimizer:
             losses = torch.nn.functional.l1_loss(
                 targets, reconstructed, reduction='none'
             ).mean(dim=(1, 2, 3))
+        elif self.config.loss_function == 'lpips':
+            # LPIPS expects images in [-1, 1] range
+            targets_norm = targets * 2.0 - 1.0
+            reconstructed_norm = reconstructed * 2.0 - 1.0
+            losses = self.lpips_loss(targets_norm, reconstructed_norm).squeeze()
+        elif self.config.loss_function == 'ssim':
+            # SSIM loss = 1 - SSIM (to make it a loss to minimize)
+            ssim_values = self._calculate_ssim_batch(targets, reconstructed)
+            losses = 1.0 - ssim_values
+        elif self.config.loss_function == 'improved_ssim':
+            # Improved SSIM loss = 1 - Improved SSIM
+            improved_ssim_values = self._calculate_improved_ssim_batch(targets, reconstructed)
+            losses = 1.0 - improved_ssim_values
+        elif self.config.loss_function == 'psnr':
+            # PSNR loss = -PSNR (negative to make it a loss to minimize)
+            psnr_values = self._calculate_psnr_batch(targets, reconstructed)
+            losses = -psnr_values
         else:
             raise ValueError(f"Unsupported loss function: {self.config.loss_function}")
         
         return losses
+    
+    def _calculate_ssim_batch(self, targets: torch.Tensor, reconstructed: torch.Tensor) -> torch.Tensor:
+        """Calculate differentiable SSIM for batch"""
+        return self._differentiable_ssim(targets, reconstructed)
+    
+    def _calculate_improved_ssim_batch(self, targets: torch.Tensor, reconstructed: torch.Tensor) -> torch.Tensor:
+        """Calculate differentiable Improved SSIM for batch"""
+        return self._differentiable_ssim(targets, reconstructed, window_size=7)  # Improved uses larger window
+    
+    def _calculate_psnr_batch(self, targets: torch.Tensor, reconstructed: torch.Tensor) -> torch.Tensor:
+        """Calculate differentiable PSNR for batch"""
+        return self._differentiable_psnr(targets, reconstructed)
+    
+    def _differentiable_ssim(self, img1: torch.Tensor, img2: torch.Tensor, window_size: int = 11) -> torch.Tensor:
+        """
+        Differentiable SSIM computation for optimization
+        
+        Args:
+            img1, img2: Images in [0, 1] range [B, C, H, W]
+            window_size: Gaussian window size
+            
+        Returns:
+            SSIM values per sample [B]
+        """
+        # Constants for SSIM
+        C1 = 0.01 ** 2
+        C2 = 0.03 ** 2
+        
+        # Create Gaussian window
+        sigma = 1.5
+        gauss = torch.arange(window_size, dtype=torch.float32, device=img1.device)
+        gauss = torch.exp(-((gauss - window_size // 2) ** 2) / (2 * sigma ** 2))
+        window_1d = gauss / gauss.sum()
+        window_2d = window_1d[:, None] * window_1d[None, :]
+        window = window_2d.expand(img1.shape[1], 1, window_size, window_size)
+        
+        # Compute means
+        mu1 = torch.nn.functional.conv2d(img1, window, padding=window_size//2, groups=img1.shape[1])
+        mu2 = torch.nn.functional.conv2d(img2, window, padding=window_size//2, groups=img2.shape[1])
+        
+        mu1_sq = mu1.pow(2)
+        mu2_sq = mu2.pow(2)
+        mu1_mu2 = mu1 * mu2
+        
+        # Compute variances and covariance
+        sigma1_sq = torch.nn.functional.conv2d(img1 * img1, window, padding=window_size//2, groups=img1.shape[1]) - mu1_sq
+        sigma2_sq = torch.nn.functional.conv2d(img2 * img2, window, padding=window_size//2, groups=img2.shape[1]) - mu2_sq
+        sigma12 = torch.nn.functional.conv2d(img1 * img2, window, padding=window_size//2, groups=img1.shape[1]) - mu1_mu2
+        
+        # SSIM computation
+        ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
+        
+        # Return mean SSIM per batch sample
+        return ssim_map.mean(dim=[1, 2, 3])
+    
+    def _differentiable_psnr(self, img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
+        """
+        Differentiable PSNR computation for optimization
+        
+        Args:
+            img1, img2: Images in [0, 1] range [B, C, H, W]
+            
+        Returns:
+            PSNR values per sample [B]
+        """
+        # Compute MSE per sample
+        mse = torch.nn.functional.mse_loss(img1, img2, reduction='none').mean(dim=[1, 2, 3])
+        
+        # PSNR = 10 * log10(1 / MSE) = 10 * (log10(1) - log10(MSE)) = -10 * log10(MSE)
+        # Add small epsilon to avoid log(0)
+        epsilon = 1e-8
+        psnr = -10 * torch.log10(mse + epsilon)
+        
+        return psnr
     
     def _check_batch_convergence(self, setup: BatchSetupResult, iteration: int) -> None:
         """
@@ -389,7 +511,7 @@ class LatentOptimizer:
                 single_latent = raw_results.optimized_latents[j:j+1]
                 
                 # Calculate metrics
-                final_metrics = self.metrics.calculate_legacy(single_target, single_recon)
+                final_metrics = self.metrics.compute_all_metrics(single_target, single_recon)
                 
                 # Calculate loss reduction
                 losses = raw_results.batch_losses[j]

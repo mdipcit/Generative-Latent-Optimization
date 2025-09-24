@@ -20,10 +20,8 @@ dependencies = [
     "opencv-python>=4.5.0",
     "scikit-image>=0.20.0",
     "imageio>=2.30.0",
-    # Metrics and evaluation
-    "lpips>=0.1.4",
-    "pytorch-fid>=0.3.0",
-    "torchmetrics>=1.0.0",
+    # Metrics and evaluation (統合完了)
+    "torch-image-metrics[full]>=0.1.0",
     # Data processing and visualization
     "numpy>=1.21.0",
     "scipy>=1.10.0",
@@ -33,7 +31,7 @@ dependencies = [
     "pyyaml>=6.0",
     "requests>=2.25.0",
     # Custom toolkit
-    "vae-toolkit==0.1.0",
+    "vae-toolkit @ file:///home/kaki/ghq/github.com/mdipcit/vae-toolkit",
     "h5py>=3.14.0",
     "pytest>=8.4.1",
     "pytest-mock>=3.14.1",

@@ -75,7 +75,7 @@ class BaseEvaluator(ABC):
             device: Device to use for computations
             **kwargs: Additional configuration parameters
         """
-        from .device_manager import DeviceManager
+        from vae_toolkit import DeviceManager
         self.device_manager = DeviceManager(device)
         self.device = self.device_manager.device
         self.metrics_calculator = self._create_metrics_calculator(**kwargs)
@@ -146,7 +146,7 @@ class BaseDataset(ABC):
         Args:
             device: Device to use for processing
         """
-        from .device_manager import DeviceManager
+        from vae_toolkit import DeviceManager
         self.device_manager = DeviceManager(device)
         self.device = self.device_manager.device
         self._setup_dataset_specific_resources()

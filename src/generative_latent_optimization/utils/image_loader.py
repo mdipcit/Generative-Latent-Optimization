@@ -21,7 +21,7 @@ class UnifiedImageLoader:
         Args:
             device: Device to load tensors to
         """
-        from ..core.device_manager import DeviceManager
+        from vae_toolkit import DeviceManager
         self.device_manager = DeviceManager(device)
         self.device = self.device_manager.device
     

@@ -26,9 +26,15 @@ class IOUtils:
         Convert tensor to PIL image and save
         
         Args:
-            tensor: Image tensor [1, C, H, W] or [C, H, W] in [0, 1] range
+            tensor: Image tensor [1, C, H, W] or [C, H, W] in [0, 1] or [-1, 1] range
             path: Output path for the image
             format: Image format (PNG, JPEG, etc.)
+            
+        Note:
+            Automatically detects tensor range and normalizes appropriately:
+            - [-1, 1] range: converts to [0, 1]
+            - [0, 1] range: keeps as is
+            - Other ranges: normalizes to [0, 1]
         """
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -42,7 +48,20 @@ class IOUtils:
         # Convert from [C, H, W] to [H, W, C]
         image_np = tensor.detach().cpu().permute(1, 2, 0).numpy()
         
-        # Ensure values are in [0, 1] range
+        # Auto-detect tensor range and normalize appropriately
+        tensor_min, tensor_max = image_np.min(), image_np.max()
+        
+        if tensor_min >= -1.1 and tensor_max <= 1.1 and tensor_min < -0.1:
+            # Tensor is in [-1, 1] range, convert to [0, 1]
+            image_np = (image_np + 1.0) / 2.0
+        elif tensor_min >= 0.0 and tensor_max <= 1.1:
+            # Tensor is already in [0, 1] range, keep as is
+            pass
+        else:
+            # Unexpected range, normalize to [0, 1]
+            image_np = (image_np - tensor_min) / (tensor_max - tensor_min)
+        
+        # Ensure final values are in [0, 1] range
         image_np = np.clip(image_np, 0, 1)
         
         # Convert to uint8
