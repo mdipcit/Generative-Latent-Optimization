@@ -12,9 +12,16 @@ from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from tqdm import tqdm
 from contextlib import contextmanager
-from ..metrics.unified_calculator import UnifiedMetricsCalculator
+import torch_image_metrics as tim
 from vae_toolkit import DeviceManager
 from ..utils.io_utils import StatisticsCalculator
+
+# 互換性のため、削除されたモジュールのエイリアスをインポート
+try:
+    from ..metrics import UnifiedMetricsCalculator
+except ImportError:
+    # フォールバック: torch-image-metricsを直接使用
+    UnifiedMetricsCalculator = tim.Calculator
 
 # Advanced loss functions
 try:
@@ -82,7 +89,16 @@ class LatentOptimizer:
     
     def __init__(self, config: OptimizationConfig):
         self.config = config
-        self.metrics = UnifiedMetricsCalculator(device=config.device, use_lpips=False, use_improved_ssim=False)
+        
+        # torch-image-metricsのCalculatorを使用
+        self.metrics = tim.Calculator(device=config.device, use_lpips=False, use_improved_ssim=False)
+        
+        # 互換性のため既存calculatorも保持（段階的移行）
+        try:
+            self.legacy_metrics = UnifiedMetricsCalculator(device=config.device, use_lpips=False, use_improved_ssim=False)
+        except:
+            # 既存実装が削除された場合のフォールバック
+            self.legacy_metrics = None
         
         # Initialize LPIPS model if needed
         if config.loss_function == 'lpips':
@@ -179,7 +195,7 @@ class LatentOptimizer:
                     
                     # Update progress bar
                     if i % self.config.checkpoint_interval == 0:
-                        psnr = self.metrics.calculate_psnr(target_image, reconstructed)
+                        psnr = self.metrics.compute_psnr(target_image, reconstructed)
                         pbar.set_postfix({
                             'Loss': f'{current_loss:.6f}',
                             'PSNR': f'{psnr:.2f}dB'
@@ -195,7 +211,7 @@ class LatentOptimizer:
         with torch.no_grad():
             final_outputs = vae.decode(optimized_latents)
             final_reconstructed = (final_outputs.sample / 2 + 0.5).clamp(0, 1)
-            final_metrics = self.metrics.calculate_legacy(target_image, final_reconstructed)
+            final_metrics = self.metrics.compute_all_metrics(target_image, final_reconstructed)
             final_psnr = final_metrics.psnr_db
             final_ssim = final_metrics.ssim
         
@@ -495,7 +511,7 @@ class LatentOptimizer:
                 single_latent = raw_results.optimized_latents[j:j+1]
                 
                 # Calculate metrics
-                final_metrics = self.metrics.calculate_legacy(single_target, single_recon)
+                final_metrics = self.metrics.compute_all_metrics(single_target, single_recon)
                 
                 # Calculate loss reduction
                 losses = raw_results.batch_losses[j]

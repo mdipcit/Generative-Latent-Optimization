@@ -16,6 +16,8 @@ import pickle
 from tqdm import tqdm
 import time
 
+import torch_image_metrics as tim
+
 from vae_toolkit import VAELoader, load_and_preprocess_image
 from ..optimization import LatentOptimizer, OptimizationConfig, OptimizationResult
 from ..metrics import ImageMetrics, MetricResults
@@ -109,7 +111,15 @@ class BatchProcessor:
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize components
-        self.metrics_calc = ImageMetrics()
+        # torch-image-metricsのCalculatorを使用
+        self.metrics_calc = tim.Calculator(device='cpu')
+        
+        # 互換性のため既存calculatorも保持（段階的移行）
+        try:
+            self.legacy_metrics_calc = ImageMetrics()
+        except:
+            # 既存実装が削除された場合のフォールバック
+            self.legacy_metrics_calc = None
         
     def process_directory(self, input_dir: Union[str, Path], 
                          output_dir: Union[str, Path],
@@ -349,7 +359,7 @@ class BatchProcessor:
                 initial_recon_tensor = (initial_reconstruction.sample / 2 + 0.5).clamp(0, 1)
             
             # Calculate initial metrics (using consistent [0,1] range)
-            initial_metrics = self.metrics_calc.calculate_all_metrics(target_tensor, initial_recon_tensor)
+            initial_metrics = self.metrics_calc.compute_all_metrics(target_tensor, initial_recon_tensor)
             
             # Perform optimization
             opt_result = optimizer.optimize(vae, initial_latents, target_tensor)
@@ -360,7 +370,7 @@ class BatchProcessor:
                 final_recon_tensor = (final_reconstruction.sample / 2 + 0.5).clamp(0, 1)
             
             # Calculate final metrics (using consistent [0,1] range)
-            final_metrics = self.metrics_calc.calculate_all_metrics(target_tensor, final_recon_tensor)
+            final_metrics = self.metrics_calc.compute_all_metrics(target_tensor, final_recon_tensor)
             
             # Save results if requested
             if self.config.save_visualizations:

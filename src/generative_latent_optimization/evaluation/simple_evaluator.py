@@ -17,22 +17,37 @@ from tqdm import tqdm
 import torch
 from PIL import Image
 
+import torch_image_metrics as tim
+
 try:
-    from ..metrics.unified_calculator import UnifiedMetricsCalculator
-    from ..metrics.dataset_metrics import DatasetFIDEvaluator
+    # 既存のデータ構造は互換性のため保持
     from ..metrics.image_metrics import AllMetricsResults, IndividualImageMetrics
     from ..utils.io_utils import StatisticsCalculator, FileUtils
     from ..utils.image_matcher import ImageMatcher
+    
+    # torch-image-metricsと互換性のためのエイリアス（削除されたモジュール）
+    try:
+        from ..metrics import UnifiedMetricsCalculator
+    except ImportError:
+        # フォールバック: torch-image-metricsを直接使用
+        UnifiedMetricsCalculator = tim.Calculator
+    from ..metrics.dataset_metrics import DatasetFIDEvaluator
 except ImportError:
     # For direct execution as script
     import sys
     parent_path = Path(__file__).parent.parent
     sys.path.append(str(parent_path))
-    from metrics.unified_calculator import UnifiedMetricsCalculator
-    from metrics.dataset_metrics import DatasetFIDEvaluator
     from metrics.image_metrics import AllMetricsResults, IndividualImageMetrics
     from utils.io_utils import StatisticsCalculator, FileUtils
     from utils.image_matcher import ImageMatcher
+    
+    # torch-image-metricsと互換性のためのエイリアス（削除されたモジュール）
+    try:
+        from metrics import UnifiedMetricsCalculator
+    except ImportError:
+        # フォールバック: torch-image-metricsを直接使用
+        UnifiedMetricsCalculator = tim.Calculator
+    from metrics.dataset_metrics import DatasetFIDEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -64,20 +79,41 @@ class SimpleAllMetricsEvaluator:
         """
         self.device = device
         
-        # Initialize unified metrics calculator
-        self.individual_calculator = UnifiedMetricsCalculator(
+        # torch-image-metricsの統合Calculatorを使用
+        self.calculator = tim.Calculator(
             device=device,
             use_lpips=use_lpips,
-            use_improved_ssim=use_improved_ssim
+            use_improved_ssim=use_improved_ssim,
+            use_fid=True
         )
         
-        # Initialize FID evaluator
-        self.fid_evaluator = DatasetFIDEvaluator(device=device)
+        # Evaluatorクラスも利用可能
+        self.evaluator = tim.Evaluator(
+            device=device,
+            use_lpips=use_lpips,
+            use_improved_ssim=use_improved_ssim,
+            use_fid=True
+        )
+        
+        # 互換性のため既存calculatorも保持（段階的移行）
+        try:
+            self.individual_calculator = UnifiedMetricsCalculator(
+                device=device,
+                use_lpips=use_lpips,
+                use_improved_ssim=use_improved_ssim
+            )
+            self.fid_evaluator = DatasetFIDEvaluator(device=device)
+        except:
+            # 既存実装が削除された場合のフォールバック
+            logger.warning("Legacy calculators not available, using torch-image-metrics only")
+            self.individual_calculator = None
+            self.fid_evaluator = None
         
         # Initialize image matcher for pair matching
         self.image_matcher = ImageMatcher(match_strategy='stem')
         
         logger.info(f"Simple All Metrics Evaluator initialized on {device}")
+        logger.info(f"  torch-image-metrics Calculator: enabled")
         logger.info(f"  LPIPS: {'enabled' if use_lpips else 'disabled'}")
         logger.info(f"  Improved SSIM: {'enabled' if use_improved_ssim else 'disabled'}")
     
@@ -233,10 +269,8 @@ class SimpleAllMetricsEvaluator:
                 original = original.to(self.device)
                 created = created.to(self.device)
                 
-                # Calculate all individual metrics
-                metrics = self.individual_calculator.calculate(
-                    original, created
-                )
+                # Calculate all individual metrics using torch-image-metrics
+                metrics = self.calculator.compute_all_metrics(original, created)
                 results.append(metrics)
                 
             except Exception as e:
@@ -259,10 +293,11 @@ class SimpleAllMetricsEvaluator:
             FID score
         """
         try:
-            fid_results = self.fid_evaluator.evaluate_created_dataset_vs_original(
-                created_path, original_path
+            # FID計算にtorch-image-metricsのCalculatorを使用
+            fid_score = self.calculator.compute_fid(
+                str(created_path), str(original_path), verbose=True
             )
-            return fid_results.fid_score
+            return fid_score
         except Exception as e:
             logger.error(f"FID calculation failed: {e}")
             return float('inf')  # Return infinity to indicate failure

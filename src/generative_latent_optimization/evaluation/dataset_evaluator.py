@@ -11,18 +11,33 @@ from pathlib import Path
 from typing import Union, Dict, Any, Optional, List
 import logging
 
+import torch_image_metrics as tim
+
 try:
-    from ..metrics.unified_calculator import UnifiedMetricsCalculator
-    from ..metrics.dataset_metrics import DatasetFIDEvaluator
+    # 既存のデータ構造は互換性のため保持
     from ..metrics.image_metrics import DatasetEvaluationResults
+    
+    # torch-image-metricsと互換性のためのエイリアス（削除されたモジュール）
+    try:
+        from ..metrics import UnifiedMetricsCalculator
+    except ImportError:
+        # フォールバック: torch-image-metricsを直接使用
+        UnifiedMetricsCalculator = tim.Calculator
+    from ..metrics.dataset_metrics import DatasetFIDEvaluator
 except ImportError:
     # For direct execution as script
     import sys
     parent_path = Path(__file__).parent.parent
     sys.path.append(str(parent_path))
-    from metrics.unified_calculator import UnifiedMetricsCalculator
-    from metrics.dataset_metrics import DatasetFIDEvaluator
     from metrics.image_metrics import DatasetEvaluationResults
+    
+    # torch-image-metricsと互換性のためのエイリアス（削除されたモジュール）
+    try:
+        from metrics import UnifiedMetricsCalculator
+    except ImportError:
+        # フォールバック: torch-image-metricsを直接使用
+        UnifiedMetricsCalculator = tim.Calculator
+    from metrics.dataset_metrics import DatasetFIDEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -46,13 +61,24 @@ class ComprehensiveDatasetEvaluator:
         """
         self.device = device
         
-        # Initialize individual metrics calculator (for potential re-calculation)
-        self.individual_calculator = UnifiedMetricsCalculator(device=device)
+        # torch-image-metricsのEvaluatorを使用
+        self.evaluator = tim.Evaluator(device=device)
         
-        # Initialize FID evaluator
-        self.fid_evaluator = DatasetFIDEvaluator(device=device)
+        # torch-image-metricsのCalculatorも利用可能
+        self.calculator = tim.Calculator(device=device)
+        
+        # 互換性のため既存calculator・evaluatorも保持（段階的移行）
+        try:
+            self.individual_calculator = UnifiedMetricsCalculator(device=device)
+            self.fid_evaluator = DatasetFIDEvaluator(device=device)
+        except:
+            # 既存実装が削除された場合のフォールバック
+            logger.warning("Legacy calculators not available, using torch-image-metrics only")
+            self.individual_calculator = None
+            self.fid_evaluator = None
         
         logger.info(f"Comprehensive dataset evaluator initialized on {device}")
+        logger.info(f"  torch-image-metrics Evaluator: enabled")
     
     def evaluate_complete_dataset(self, 
                                 dataset_path: Union[str, Path],
