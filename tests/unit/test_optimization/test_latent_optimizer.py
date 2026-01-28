@@ -85,13 +85,13 @@ class TestLatentOptimizer:
         """Test LatentOptimizer initialization with various configurations"""
         print_test_header("Optimizer Initialization Test")
         
-        # Test default configuration
+        # Test default configuration (LPIPS optimized defaults)
         config = OptimizationConfig()
         optimizer = LatentOptimizer(config)
-        
-        assert optimizer.config.iterations == 150
-        assert optimizer.config.learning_rate == 0.4
-        assert optimizer.config.loss_function == 'mse'
+
+        assert optimizer.config.iterations == 200
+        assert optimizer.config.learning_rate == 0.2
+        assert optimizer.config.loss_function == 'lpips'
         print_test_result("Default config", True, "All default values correct")
         
         # Test custom configuration

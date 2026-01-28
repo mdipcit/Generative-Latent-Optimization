@@ -29,12 +29,12 @@ class TestOptimizationConfig:
         print_test_header("Default Configuration Test")
         
         config = OptimizationConfig()
-        
-        # Verify all default values
-        assert config.iterations == 150
-        assert config.learning_rate == 0.4
-        assert config.loss_function == 'mse'
-        assert config.convergence_threshold == 1e-6
+
+        # Verify all default values (LPIPS optimized defaults)
+        assert config.iterations == 200
+        assert config.learning_rate == 0.2
+        assert config.loss_function == 'lpips'
+        assert config.convergence_threshold == 1e-4
         assert config.checkpoint_interval == 20
         assert config.device == "cuda"
         

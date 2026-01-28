@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from tqdm import tqdm
 from contextlib import contextmanager
 import torch_image_metrics as tim
-from vae_toolkit import DeviceManager
+from vae_toolkit import VAELoader
 from ..utils.io_utils import StatisticsCalculator
 
 # 互換性のため、削除されたモジュールのエイリアスをインポート
@@ -34,10 +34,10 @@ except ImportError:
 @dataclass
 class OptimizationConfig:
     """Configuration for latent optimization"""
-    iterations: int = 150
-    learning_rate: float = 0.4
-    loss_function: str = 'mse'  # 'mse', 'l1', 'lpips', 'ssim', 'improved_ssim', 'psnr'
-    convergence_threshold: float = 1e-6
+    iterations: int = 200
+    learning_rate: float = 0.2
+    loss_function: str = 'lpips'  # 'mse', 'l1', 'lpips', 'ssim', 'improved_ssim', 'psnr'
+    convergence_threshold: float = 1e-4
     checkpoint_interval: int = 20
     device: str = "cuda"
 
